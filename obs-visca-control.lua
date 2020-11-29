@@ -5,14 +5,20 @@ plugin_def = {}
 plugin_def.id = "Visca_Control"
 plugin_def.type = obs.OBS_SOURCE_TYPE_INPUT;
 plugin_def.output_flags = bit.bor(obs.OBS_SOURCE_CUSTOM_DRAW)
+plugin_debug = true
 
 
-function script_description()
-    return "Camera control via Visca over IP"
+local function log(fmt, ...)
+    if plugin_debug then
+        local info = debug.getinfo(2, "nl")
+        local func = info.name or "?"
+        local line = info.currentline
+        print(string.format("%s (%d): %s", func, line, string.format(fmt, unpack(arg or {...}))))
+    end
 end
 
 local function create_camera_controls(props, camera_id)
-    print(string.format("create_camera_controls %d", camera_id))
+    log("entry - %d", camera_id)
     local cams = obs.obs_properties_get(props, "cameras")
     if cams then
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
@@ -37,7 +43,11 @@ local function create_camera_controls(props, camera_id)
         end
         obs.obs_property_set_modified_callback(prop_presets, prop_set_preset_id)
     end
-    print("create_camera_controls done")
+    log("done")
+end
+
+function script_description()
+    return "Camera control via Visca over IP"
 end
 
 function script_update(settings)
@@ -53,7 +63,7 @@ function script_properties()
     --obs.obs_properties_add_button(props, "add_camera", "Add camera", prop_add_camera)
     
     local num_cameras = obs.obs_data_get_int(plugin_settings, "num_cameras")
-    print(string.format("script_properties :: num_cameras %d", num_cameras))
+    log("num_cameras %d", num_cameras)
     
     local cams = obs.obs_properties_add_list(props, "cameras", "Camera", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
     for camera_id = 1, num_cameras do
@@ -69,7 +79,7 @@ function prop_num_cams(props, property, settings)
     local cam_added = false
     
     local num_cameras = obs.obs_data_get_int(plugin_settings, "num_cameras")
-    print(string.format("prop_num_cams :: num_cameras %d", num_cameras))
+    log("num_cameras %d", num_cameras)
     local cams = obs.obs_properties_get(props, "cameras")
     if cams then
         local camera_count = obs.obs_property_list_item_count(cams)
@@ -119,7 +129,7 @@ end
 --end
 
 function prop_set_attrs_values(props, property, settings)
-    print("prop_set_attrs_values")
+    log("entry")
     local changed = false
     local num_cameras = obs.obs_property_list_item_count(property)
     local cam_idx = obs.obs_data_get_int(settings, "cameras")
@@ -129,7 +139,7 @@ function prop_set_attrs_values(props, property, settings)
     
     for camera_id = 1, num_cameras do
         local visible = cam_idx == camera_id
-        print(string.format("prop_set_attrs_values %d %d %d", camera_id, cam_idx, visible and 1 or 0))
+        log("%d %d %d", camera_id, cam_idx, visible and 1 or 0)
         
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
 
@@ -145,7 +155,7 @@ function prop_set_attrs_values(props, property, settings)
         end
         --obs.obs_property_set_visible(obs.obs_properties_get(props, cam_prop_prefix .. "preset_id"), cam_idx == camera_id)
     end
-    print(string.format("prop_set_attrs_values done %d", changed and 1 or 0))
+    log("done %d", changed and 1 or 0)
     
     return changed
 end
