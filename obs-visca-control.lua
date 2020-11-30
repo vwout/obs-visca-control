@@ -22,6 +22,8 @@ local function create_camera_controls(props, camera_id)
     local cams = obs.obs_properties_get(props, "cameras")
     if cams then
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
+        local cam_name_suffix = string.format(" (cam %d)", camera_id)
+        
         local cam_name = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "name")
         if #cam_name == 0 then
             cam_name = string.format("Camera %d", camera_id)
@@ -30,16 +32,16 @@ local function create_camera_controls(props, camera_id)
         
         local prop_name = obs.obs_properties_get(props, cam_prop_prefix .. "name")
         if prop_name == nil then
-            obs.obs_properties_add_text(props, cam_prop_prefix .. "name", "Name", obs.OBS_TEXT_DEFAULT)
+            obs.obs_properties_add_text(props, cam_prop_prefix .. "name", "Name" .. cam_name_suffix, obs.OBS_TEXT_DEFAULT)
             obs.obs_data_set_default_string(plugin_settings, cam_prop_prefix .. "name", cam_name)
         end
         local prop_address = obs.obs_properties_get(props, cam_prop_prefix .. "address")
         if prop_address == nil then
-            obs.obs_properties_add_text(props, cam_prop_prefix .. "address", "IP Address", obs.OBS_TEXT_DEFAULT)
+            obs.obs_properties_add_text(props, cam_prop_prefix .. "address", "IP Address" .. cam_name_suffix, obs.OBS_TEXT_DEFAULT)
         end
         local prop_presets = obs.obs_properties_get(props, cam_prop_prefix .. "presets")
         if prop_presets == nil then
-            prop_presets= obs.obs_properties_add_editable_list(props, cam_prop_prefix .. "presets", "Presets", obs.OBS_EDITABLE_LIST_TYPE_STRINGS, "", "")
+            prop_presets = obs.obs_properties_add_editable_list(props, cam_prop_prefix .. "presets", "Presets" .. cam_name_suffix, obs.OBS_EDITABLE_LIST_TYPE_STRINGS, "", "")
         end
         obs.obs_property_set_modified_callback(prop_presets, prop_presets_validate)
     end
