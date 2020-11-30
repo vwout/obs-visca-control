@@ -41,13 +41,19 @@ local function create_camera_controls(props, camera_id)
         if prop_presets == nil then
             prop_presets= obs.obs_properties_add_editable_list(props, cam_prop_prefix .. "presets", "Presets", obs.OBS_EDITABLE_LIST_TYPE_STRINGS, "", "")
         end
-        obs.obs_property_set_modified_callback(prop_presets, prop_set_preset_id)
+        obs.obs_property_set_modified_callback(prop_presets, prop_presets_validate)
     end
     log("done")
 end
 
 function script_description()
-    return "Camera control via Visca over IP"
+    return "<b>Camera control via Visca over IP</b><br>" ..
+           "<a href=\"https://github.com/vwout/obs-visca-control\">https://github.com/vwout/obs-visca-control</a><br><br>" ..
+           "Usage:<br>" ..
+           "To add a preset in the list, use one the following naming conventions:<ul>" ..
+           "<li>&lt;name&gt;&lt;separator&gt;&lt;preset id&gt;, e.g. 'Stage: 6'</li>" .. 
+           "<li>&lt;preset id&gt;&lt;separator&gt;&lt;name&gt;, e.g. '5 = Pastor'</li>" ..
+           "</ul>where &lt;separator&gt; is one of ':', '=' or '-'."
 end
 
 function script_update(settings)
@@ -60,8 +66,6 @@ function script_properties()
     local num_cams = obs.obs_properties_add_int(props, "num_cameras", "Number of cameras", 0, 8, 1)
     obs.obs_property_set_modified_callback(num_cams, prop_num_cams)
     
-    --obs.obs_properties_add_button(props, "add_camera", "Add camera", prop_add_camera)
-    
     local num_cameras = obs.obs_data_get_int(plugin_settings, "num_cameras")
     log("num_cameras %d", num_cameras)
     
@@ -71,7 +75,8 @@ function script_properties()
     end
     
     obs.obs_property_set_modified_callback(cams, prop_set_attrs_values)
-    
+    --obs.obs_properties_apply_settings(props, settings)
+
     return props
 end
 
@@ -160,10 +165,55 @@ function prop_set_attrs_values(props, property, settings)
     return changed
 end
 
-function prop_set_preset_id(props, property, settings)
-    --local preset_idx = obs.obs_data_get_int(settings, "presets")
+local function parse_preset_value(preset_value)
+    local preset_name = nil
+    local preset_id = nil
+    local regex_patterns = {
+        "^(.+)%s*[:=-]%s*(%d+)$",
+        "^(%d+)%s*[:=-]%s*(.+)$"
+    }
     
-    --obs.obs_property_set_enabled(obs.obs_properties_get(props, "preset_id"), preset_idx > 0)
+    for _,pattern in pairs(regex_patterns) do
+        local v1 = nil
+        local v2 = nil
+        v1,v2 = string.match(preset_value, pattern)
+        log("match '%s', '%s'", tostring(v1), tostring(v2))
+        if (v1 ~= nil) and (v2 ~= nil) then
+            if (tonumber(v1) == nil) and (tonumber(v2) ~= nil) then
+                preset_name = v1
+                preset_id = tonumber(v2)
+                break
+            elseif (tonumber(v2) == nil) and (tonumber(v1) ~= nil) then
+                preset_name = v2
+                preset_id = tonumber(v1)
+                break
+            end
+        end
+    end
+    
+    return preset_name, preset_id
+end
+
+function prop_presets_validate(props, property, settings)
+    local presets = obs.obs_data_get_array(settings, obs.obs_property_name(property))
+    local num_presets = obs.obs_data_array_count(presets)
+    log("prop_presets_validate %s %d", obs.obs_property_name(property), num_presets)
+
+    if num_presets > 0 then
+        for i = 0, num_presets-1 do
+            local preset = obs.obs_data_array_item(presets, i)
+            --log(obs.obs_data_get_json(preset))
+            local preset_value = obs.obs_data_get_string(preset, "value")
+            log("check %s", preset_value)
+            
+            local preset_name, preset_id = parse_preset_value(preset_value)
+            if (preset_name == nil) or (preset_id == nil) then
+                print("Warning: preset '" .. preset_value .. "' has an unsupported syntax and cannot be used.")
+            end
+        end
+    end
+    
+    obs.obs_data_array_release(presets)
 end
 
 plugin_def.get_name = function()
