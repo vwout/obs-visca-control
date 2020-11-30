@@ -99,44 +99,11 @@ function prop_num_cams(props, property, settings)
     return cam_added
 end
 
---function prop_add_camera(props, property, settings)
---    local cams = obs.obs_properties_get(props, "cameras")
---    local num_cameras = obs.obs_property_list_item_count(cams)
---    --local num_cameras = obs.obs_data_get_int(settings, "num_cameras")
---    num_cameras = num_cameras + 1
---    obs.obs_data_set_int(settings, "num_cameras", num_cameras)
---    print(num_cameras)
---    
---    --local camera = {
---    --    id = num_cameras,
---    --    name = string.format("Camera %d", num_cameras),
---    --    address = "",
---    --    presets = {}
---    --}
---
---    create_camera_controls(props, num_cameras)
---    --obs.obs_property_list_add_int(cams, string.format("Camera %d", num_cameras), num_cameras)
---    --    
---    --local cam_prop_prefix = string.format("cam_%d_", num_cameras)
---    --
---    --obs.obs_properties_add_text(props, cam_prop_prefix .. "name", "Name", obs.OBS_TEXT_DEFAULT)
---    ----obs.obs_data_set_string(settings, cam_prop_prefix .. "name", camera.name)
---    --
---    --obs.obs_properties_add_text(props, cam_prop_prefix .. "address", "IP Address", obs.OBS_TEXT_DEFAULT)
---    --local presets = obs.obs_properties_add_editable_list(props, cam_prop_prefix .. "presets", "Presets", obs.OBS_EDITABLE_LIST_TYPE_STRINGS, "", "")
---    --obs.obs_property_set_modified_callback(presets, prop_set_preset_id)
---    ----obs.obs_properties_add_int(props, "preset_id", "Preset Id", 0, 127, 1)
---    --
---    ----table.insert(plugin_data.cameras, camera)
---    --obs.obs_properties_apply_settings(props, settings)
---
---    --return true
---end
-
 function prop_set_attrs_values(props, property, settings)
-    log("entry")
+    log("prop_set_attrs_values - entry")
     local changed = false
-    local num_cameras = obs.obs_property_list_item_count(property)
+    --local num_cameras = obs.obs_property_list_item_count(property)
+    local num_cameras = obs.obs_data_get_int(plugin_settings, "num_cameras")
     local cam_idx = obs.obs_data_get_int(settings, "cameras")
     if cnt == 0 then
         cam_idx = 0
@@ -148,7 +115,7 @@ function prop_set_attrs_values(props, property, settings)
         
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
 
-        cam_props = {"name", "address", "presets"}
+        local cam_props = {"name", "address", "presets", "preset_info"}
         for _,cam_prop_name in pairs(cam_props) do
             local cam_prop = obs.obs_properties_get(props, cam_prop_prefix .. cam_prop_name)
             if cam_prop then
@@ -158,9 +125,8 @@ function prop_set_attrs_values(props, property, settings)
                 end
             end
         end
-        --obs.obs_property_set_visible(obs.obs_properties_get(props, cam_prop_prefix .. "preset_id"), cam_idx == camera_id)
     end
-    log("done %d", changed and 1 or 0)
+    log("prop_set_attrs_values - done %d", changed and 1 or 0)
     
     return changed
 end
