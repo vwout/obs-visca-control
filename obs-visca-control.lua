@@ -9,7 +9,7 @@ plugin_debug = true
 
 
 local preset_active = {
-    Program_PreviewOnly = 0,
+    --Program_PreviewOnly = 0,
     Program = 1,
     Preview = 2,
     Always = 3,
@@ -175,7 +175,7 @@ function prop_presets_validate(props, property, settings)
             local preset = obs.obs_data_array_item(presets, i)
             --log(obs.obs_data_get_json(preset))
             local preset_value = obs.obs_data_get_string(preset, "value")
-            log("check %s", preset_value)
+            --log("check %s", preset_value)
             
             local preset_name, preset_id = parse_preset_value(preset_value)
             if (preset_name == nil) or (preset_id == nil) then
@@ -194,9 +194,12 @@ end
 plugin_def.create = function(settings, source)
     local data = {}
     local source_sh = obs.obs_source_get_signal_handler(source)
-	--obs.signal_handler_connect(source_sh, "activate", sh_active)   --Set Active Callback
-	--obs.signal_handler_connect(source_sh, "show", sh_showing)	   --Set Preview Callback
+	obs.signal_handler_connect(source_sh, "activate", sh_on_program)   --Set Active Callback
+	obs.signal_handler_connect(source_sh, "show", sh_on_preview)	   --Set Preview Callback
     return data
+end
+
+plugin_def.destroy = function(source)
 end
 
 plugin_def.get_properties = function (data)
@@ -220,15 +223,20 @@ plugin_def.get_properties = function (data)
         log("get_properties %s %d", cam_prop_prefix .. "preset", num_presets)
 
         if num_presets > 0 then
+            local first_preset = true
             for i = 0, num_presets-1 do
                 local preset = obs.obs_data_array_item(presets, i)
                 --log(obs.obs_data_get_json(preset))
                 local preset_value = obs.obs_data_get_string(preset, "value")
-                log("check %s", preset_value)
+                --log("check %s", preset_value)
                 
                 local preset_name, preset_id = parse_preset_value(preset_value)
                 if (preset_name ~= nil) and (preset_id ~= nil) then
                     obs.obs_property_list_add_int(prop_presets, preset_name, preset_id)
+                    if first_preset then
+                        obs.obs_data_set_default_int(plugin_settings, "scene_" .. cam_prop_prefix .. "preset", preset_id)
+                        first_preset = false
+                    end
                 end
             end
         end
@@ -236,11 +244,11 @@ plugin_def.get_properties = function (data)
         obs.obs_data_array_release(presets)
     end
 
-	local prop_active = obs.obs_properties_add_list(props, "scene_active", "Preset Active:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
-	obs.obs_property_list_add_string(prop_active, "On Program and on Preview when camera not on Program", preset_active.Program_PreviewOnly)
-	obs.obs_property_list_add_string(prop_active, "On Program", preset_active.Program)
-	obs.obs_property_list_add_string(prop_active, "On Preview", preset_active.Preview)
-	obs.obs_property_list_add_string(prop_active, "Always", preset_active.Active)
+	local prop_active = obs.obs_properties_add_list(props, "scene_active", "Preset Active:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+	--obs.obs_property_list_add_string(prop_active, "On Program and on Preview when camera not on Program", preset_active.Program_PreviewOnly)
+	obs.obs_property_list_add_int(prop_active, "On Program", preset_active.Program)
+	obs.obs_property_list_add_int(prop_active, "On Preview", preset_active.Preview)
+	obs.obs_property_list_add_int(prop_active, "Always", preset_active.Always)
 
     obs.obs_property_set_modified_callback(prop_camera, cb_camera_changed)
 
@@ -276,7 +284,46 @@ function cb_camera_changed(props, property, data)
     return changed
 end
 
-plugin_def.destroy = function(source)
+local function do_cam_preset(settings)
+    local camera_id = obs.obs_data_get_int(settings, "scene_camera")
+    local cam_prop_prefix = string.format("cam_%d_", camera_id)
+    local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
+    local preset_id = obs.obs_data_get_int(settings, "scene_".. cam_prop_prefix .. "preset")
+    log("TODO cam %d @%s preset %d", camera_id, camera_address, preset_id)
+end
+
+function sh_on_program(calldata)
+    local source = obs.calldata_source(calldata, "source")
+	local settings = obs.obs_source_get_settings(source)
+    
+    local do_preset = false
+    local active = obs.obs_data_get_int(settings, "scene_active")
+    if (active == preset_active.Program) or (active == preset_active.Always) then
+        do_preset = true
+    end
+
+    if do_preset then 
+        do_cam_preset(settings)
+    end
+    
+	obs.obs_data_release(settings)
+end
+
+function sh_on_preview(calldata)
+    local source = obs.calldata_source(calldata, "source")
+	local settings = obs.obs_source_get_settings(source)
+    
+    local do_preset = false
+    local active = obs.obs_data_get_int(settings, "scene_active")
+    if (active == preset_active.Preview) or (active == preset_active.Always) then
+        do_preset = true
+    end
+
+    if do_preset then 
+        do_cam_preset(settings)
+    end
+    
+	obs.obs_data_release(settings)
 end
 
 obs.obs_register_source(plugin_def);
