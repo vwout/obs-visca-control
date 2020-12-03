@@ -8,8 +8,13 @@ plugin_def.type = obs.OBS_SOURCE_TYPE_INPUT;
 plugin_def.output_flags = bit.bor(obs.OBS_SOURCE_CUSTOM_DRAW)
 plugin_debug = true
 
+local actions = {
+    Camera_Off = 0,
+    Camera_On  = 1,
+    Preset_Recal = 2,
+}
 
-local preset_active = {
+local action_active = {
     --Program_PreviewOnly = 0,
     Program = 1,
     Preview = 2,
@@ -208,6 +213,12 @@ plugin_def.get_properties = function (data)
     
     local num_cameras = obs.obs_data_get_int(plugin_settings, "num_cameras")
 	local prop_camera = obs.obs_properties_add_list(props, "scene_camera", "Camera:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+
+	local prop_action = obs.obs_properties_add_list(props, "scene_action", "Action:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+	obs.obs_property_list_add_int(prop_action, "Camera Off", actions.Camera_Off)
+	obs.obs_property_list_add_int(prop_action, "Camera On", actions.Camera_On)
+	obs.obs_property_list_add_int(prop_action, "Preset Recall", actions.Preset_Recal)
+    
     for camera_id = 1, num_cameras do
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
         local cam_name_suffix = string.format(" (cam %d)", camera_id)
@@ -245,15 +256,36 @@ plugin_def.get_properties = function (data)
         obs.obs_data_array_release(presets)
     end
 
-	local prop_active = obs.obs_properties_add_list(props, "scene_active", "Preset Active:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
-	--obs.obs_property_list_add_string(prop_active, "On Program and on Preview when camera not on Program", preset_active.Program_PreviewOnly)
-	obs.obs_property_list_add_int(prop_active, "On Program", preset_active.Program)
-	obs.obs_property_list_add_int(prop_active, "On Preview", preset_active.Preview)
-	obs.obs_property_list_add_int(prop_active, "Always", preset_active.Always)
+	local prop_active = obs.obs_properties_add_list(props, "scene_active", "Action Active:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+	--obs.obs_property_list_add_string(prop_active, "On Program and on Preview when camera not on Program", action_active.Program_PreviewOnly)
+	obs.obs_property_list_add_int(prop_active, "On Program", action_active.Program)
+	obs.obs_property_list_add_int(prop_active, "On Preview", action_active.Preview)
+	obs.obs_property_list_add_int(prop_active, "Always", action_active.Always)
+
+    --obs.obs_properties_add_button(props, "run_action", "Perform action now", cb_run_action)
 
     obs.obs_property_set_modified_callback(prop_camera, cb_camera_changed)
 
 	return props
+end
+
+local function do_cam_preset(settings)
+    local camera_id = obs.obs_data_get_int(settings, "scene_camera")
+    local action = obs.obs_data_get_int(settings, "scene_action")
+    
+    local cam_prop_prefix = string.format("cam_%d_", camera_id)
+    local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
+    local preset_id = obs.obs_data_get_int(settings, "scene_".. cam_prop_prefix .. "preset")
+    
+    log("Set cam %d @%s action %d (preset %d)", camera_id, camera_address, action, preset_id)
+    connection = Visca.connect(camera_address)
+    if action == actions.Camera_Off then
+        connection.Cam_Power(false)
+    elseif action == actions.Camera_On then
+        connection.Cam_Power(true)
+    elseif action == actions.Preset_Recal then
+        connection.Cam_Preset_Recall(preset_id)
+    end
 end
 
 function cb_camera_changed(props, property, data)
@@ -285,24 +317,13 @@ function cb_camera_changed(props, property, data)
     return changed
 end
 
-local function do_cam_preset(settings)
-    local camera_id = obs.obs_data_get_int(settings, "scene_camera")
-    local cam_prop_prefix = string.format("cam_%d_", camera_id)
-    local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
-    local preset_id = obs.obs_data_get_int(settings, "scene_".. cam_prop_prefix .. "preset")
-    
-    log("Set cam %d @%s preset %d", camera_id, camera_address, preset_id)
-    connection = Visca.connect(camera_address)
-    connection.Cam_Preset_Recall(preset_id)
-end
-
 function sh_on_program(calldata)
     local source = obs.calldata_source(calldata, "source")
 	local settings = obs.obs_source_get_settings(source)
     
     local do_preset = false
     local active = obs.obs_data_get_int(settings, "scene_active")
-    if (active == preset_active.Program) or (active == preset_active.Always) then
+    if (active == action_active.Program) or (active == action_active.Always) then
         do_preset = true
     end
 
@@ -319,7 +340,7 @@ function sh_on_preview(calldata)
     
     local do_preset = false
     local active = obs.obs_data_get_int(settings, "scene_active")
-    if (active == preset_active.Preview) or (active == preset_active.Always) then
+    if (active == action_active.Preview) or (active == action_active.Always) then
         do_preset = true
     end
 
