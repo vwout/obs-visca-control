@@ -1,4 +1,5 @@
 obs = obslua
+Visca = require("libvisca")
 
 plugin_settings = {}
 plugin_def = {}
@@ -289,7 +290,10 @@ local function do_cam_preset(settings)
     local cam_prop_prefix = string.format("cam_%d_", camera_id)
     local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
     local preset_id = obs.obs_data_get_int(settings, "scene_".. cam_prop_prefix .. "preset")
-    log("TODO cam %d @%s preset %d", camera_id, camera_address, preset_id)
+    
+    log("Set cam %d @%s preset %d", camera_id, camera_address, preset_id)
+    connection = Visca.connect(camera_address)
+    connection.Cam_Preset_Recall(preset_id)
 end
 
 function sh_on_program(calldata)

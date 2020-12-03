@@ -1,4 +1,3 @@
---obs = obslua
 bit = require("bit")
 --local socket = require("socket")
 local socket = require("ljsocket")
@@ -161,29 +160,4 @@ function Visca.connect(address, port)
     return connection
 end
 
-
-connection = Visca.connect('192.168.7.204')
-
---local set_preset_4 = "\x01\x00\x00\x07\x00\x00\x00\x01\x81\x01\x04\x3f\x02\x03\xff"
---local msg = Visca.Message()
---msg.from_data(set_preset_4)
---print('command ', msg.command, msg.command == Visca.payload_types.command)
---print('size ', msg.payload_size)
---print('seq ', msg.seq_nr)
---print('data ', msg.payload)
---
---connection.send(msg)
---
---local set_move_left = "\x01\x00\x00\x09\x00\x00\x00\x03\x81\x01\x06\x01\x01\x01\x03\x03\xff"
---local msg2 = Visca.Message()
---msg2.from_data(set_move_left)
---print('command ', msg2.command, msg2.command == Visca.payload_types.command)
---print('size ', msg2.payload_size)
---print('seq ', msg2.seq_nr)
---print('data ', msg2.payload)
-
---connection.Cam_Power(true)
---connection.Cam_Power(true)
-
-
-connection.Cam_Preset_Recall(2)
+return Visca
