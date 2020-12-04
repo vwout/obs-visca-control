@@ -1,12 +1,20 @@
 obs = obslua
 Visca = require("libvisca")
 
+plugin_info = {
+    name = "Visca Camera Control",
+    version = "0.9",
+    url = "https://github.com/vwout/obs-visca-control",
+    description = "Camera control via Visca over IP",
+    author = "vwout"
+}
+
 plugin_settings = {}
 plugin_def = {}
 plugin_def.id = "Visca_Control"
 plugin_def.type = obs.OBS_SOURCE_TYPE_INPUT;
 plugin_def.output_flags = bit.bor(obs.OBS_SOURCE_CUSTOM_DRAW)
-plugin_debug = true
+plugin_debug = false
 
 local actions = {
     Camera_Off = 0,
@@ -61,8 +69,9 @@ local function create_camera_controls(props, camera_id)
 end
 
 function script_description()
-    return "<b>Camera control via Visca over IP</b><br>" ..
-           "<a href=\"https://github.com/vwout/obs-visca-control\">https://github.com/vwout/obs-visca-control</a><br><br>" ..
+    return "<b>" .. plugin_info.description .. "</b><br>" ..
+           "Version: " .. plugin_info.version .. "<br>" ..
+           "<a href=\"" .. plugin_info.url .. "\">" .. plugin_info.url .. "</a><br><br>" ..
            "Usage:<br>" ..
            "To add a preset in the list, use one the following naming conventions:<ul>" ..
            "<li>&lt;name&gt;&lt;separator&gt;&lt;preset id&gt;, e.g. 'Stage: 6'</li>" .. 
@@ -194,7 +203,7 @@ function prop_presets_validate(props, property, settings)
 end
 
 plugin_def.get_name = function()
-    return "Visca Camera Control"
+    return plugin_info.name
 end
 
 plugin_def.create = function(settings, source)
