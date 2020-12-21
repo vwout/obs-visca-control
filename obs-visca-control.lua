@@ -14,7 +14,10 @@ plugin_def = {}
 plugin_def.id = "Visca_Control"
 plugin_def.type = obs.OBS_SOURCE_TYPE_INPUT;
 plugin_def.output_flags = bit.bor(obs.OBS_SOURCE_CUSTOM_DRAW)
-plugin_debug = false
+plugin_data = {}
+plugin_data.debug = false
+plugin_data.active_scene = nil
+plugin_data.preview_scene = nil
 
 local actions = {
     Camera_Off = 0,
@@ -31,7 +34,7 @@ local action_active = {
 
 
 local function log(fmt, ...)
-    if plugin_debug then
+    if plugin_data.debug then
         local info = debug.getinfo(2, "nl")
         local func = info.name or "?"
         local line = info.currentline
@@ -39,13 +42,13 @@ local function log(fmt, ...)
     end
 end
 
-local function create_camera_controls(props, camera_id)
+local function create_camera_controls(props, camera_id, settings)
     local cams = obs.obs_properties_get(props, "cameras")
     if cams then
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
         local cam_name_suffix = string.format(" (cam %d)", camera_id)
         
-        local cam_name = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "name")
+        local cam_name = obs.obs_data_get_string(settings, cam_prop_prefix .. "name")
         if #cam_name == 0 then
             cam_name = string.format("Camera %d", camera_id)
         end
@@ -94,7 +97,7 @@ function script_properties()
     
     local cams = obs.obs_properties_add_list(props, "cameras", "Camera", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
     for camera_id = 1, num_cameras do
-        create_camera_controls(props, camera_id)
+        create_camera_controls(props, camera_id, plugin_settings)
     end
     
     obs.obs_property_set_modified_callback(cams, prop_set_attrs_values)
@@ -113,7 +116,7 @@ function prop_num_cams(props, property, settings)
         local camera_count = obs.obs_property_list_item_count(cams)
         if num_cameras > camera_count then
             for camera_id = camera_count+1, num_cameras do
-                create_camera_controls(props, camera_id)
+                create_camera_controls(props, camera_id, settings)
             end
             cam_added = true
         end
@@ -210,7 +213,7 @@ plugin_def.create = function(settings, source)
     local data = {}
     local source_sh = obs.obs_source_get_signal_handler(source)
 	obs.signal_handler_connect(source_sh, "activate", sh_on_program)   --Set Active Callback
-	obs.signal_handler_connect(source_sh, "show", sh_on_preview)	   --Set Preview Callback
+    obs.obs_frontend_add_event_callback(fe_callback)
     return data
 end
 
@@ -287,7 +290,7 @@ local function do_cam_preset(settings)
     local preset_id = obs.obs_data_get_int(settings, "scene_".. cam_prop_prefix .. "preset")
     
     log("Set cam %d @%s action %d (preset %d)", camera_id, camera_address, action, preset_id)
-    connection = Visca.connect(camera_address)
+    local connection = Visca.connect(camera_address)
     if action == actions.Camera_Off then
         connection.Cam_Power(false)
     elseif action == actions.Camera_On then
@@ -326,6 +329,48 @@ function cb_camera_changed(props, property, data)
     return changed
 end
 
+function fe_callback(event, data)
+    if event == obs.OBS_FRONTEND_EVENT_SCENE_CHANGED then
+        --local scenesource = obs.obs_frontend_get_current_scene()
+        --log("fe_callback OBS_FRONTEND_EVENT_SCENE_CHANGED to %s", plugin_data.active_scene or "?")
+        --obs.obs_source_release(scenesource)
+    elseif event == obs.OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED then
+        local scenesource = obs.obs_frontend_get_current_preview_scene()
+        if scenesource ~= nil then
+            local scene = obs.obs_scene_from_source(scenesource)
+            local scene_name = obs.obs_source_get_name(scenesource)
+            if plugin_data.preview_scene ~= scene_name then
+                plugin_data.preview_scene = scene_name
+                log("OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED to %s", scene_name or "?")
+
+                local scene_items = obs.obs_scene_enum_items(scene)
+                if scene_items ~= nil then
+                    for _, scene_item in ipairs(scene_items) do
+                        local source = obs.obs_sceneitem_get_source(scene_item)
+                        local source_id = obs.obs_source_get_unversioned_id(source)
+                        if source_id == plugin_def.id then
+                            local settings = obs.obs_source_get_settings(source)
+                            local source_name = obs.obs_source_get_name(source)
+
+                            local active = obs.obs_data_get_int(settings, "scene_active")
+                            if (active == action_active.Preview) or (active == action_active.Always) then
+                                log("Running Visca for source '%s'", source_name or "?")
+                                do_cam_preset(settings)
+                            end
+
+                            obs.obs_data_release(settings)
+                        end
+                    end
+                end
+
+                obs.sceneitem_list_release(scene_items)
+            end
+
+            obs.obs_source_release(scenesource)
+        end
+    end
+end
+
 function sh_on_program(calldata)
     local source = obs.calldata_source(calldata, "source")
 	local settings = obs.obs_source_get_settings(source)
@@ -333,23 +378,6 @@ function sh_on_program(calldata)
     local do_preset = false
     local active = obs.obs_data_get_int(settings, "scene_active")
     if (active == action_active.Program) or (active == action_active.Always) then
-        do_preset = true
-    end
-
-    if do_preset then 
-        do_cam_preset(settings)
-    end
-    
-	obs.obs_data_release(settings)
-end
-
-function sh_on_preview(calldata)
-    local source = obs.calldata_source(calldata, "source")
-	local settings = obs.obs_source_get_settings(source)
-    
-    local do_preset = false
-    local active = obs.obs_data_get_int(settings, "scene_active")
-    if (active == action_active.Preview) or (active == action_active.Always) then
         do_preset = true
     end
 
