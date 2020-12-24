@@ -3,7 +3,7 @@ Visca = require("libvisca")
 
 plugin_info = {
     name = "Visca Camera Control",
-    version = "0.9",
+    version = "1.0",
     url = "https://github.com/vwout/obs-visca-control",
     description = "Camera control via Visca over IP",
     author = "vwout"
