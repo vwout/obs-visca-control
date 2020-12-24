@@ -1,12 +1,5 @@
 bit = require("bit")
---local socket = require("socket")
 local socket = require("ljsocket")
-
-plugin_data = {}
-plugin_def = {}
-plugin_def.id = "Visca_Control"
---plugin_def.type = obs.OBS_SOURCE_TYPE_INPUT;
---plugin_def.output_flags = bit.bor(obs.OBS_SOURCE_CUSTOM_DRAW)
 
 local Visca = {}
 
@@ -127,7 +120,7 @@ function Visca.connect(address, port)
     end
 
     function connection.Cam_Power(on, await_ack, await_completion, camera_nr)
-        msg = Visca.Message()
+        local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
                 0x80 + bit.band(camera_nr or 1,  0x0F),
@@ -142,7 +135,7 @@ function Visca.connect(address, port)
     end
     
     function connection.Cam_Preset_Recall(preset, camera_nr)
-        msg = Visca.Message()
+        local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
                 0x80 + bit.band(camera_nr or 1, 0x0F),
