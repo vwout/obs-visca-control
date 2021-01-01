@@ -22,6 +22,7 @@ The other `.lua` files in this repository are also required, but should not be a
 ## Configuration
 Before the plugin can be used in a scene, it requires configuration in the `Script` dialog.
 ![Plugin configuration](images/docs/plugin_settings.png)
+
 Start by enumerating the number of cameras cameras that you want to control.
 For each camera a set of configuration properties will be shown:
 - Name: A friendly name for easy recognition of the camera
@@ -39,9 +40,10 @@ The preset follows a specific syntax to link a preset number to a name. The foll
 The separator can be `:`, `=` or `-`.
 Valid examples are `0: Home`, `5 = Pastor` or `Stage - 6`
 
-##Usage
+## Usage
 To control a camera, add a `Visca Camera Control` source to a scene.
 ![Source configuration](images/docs/scene_settings.png)
+
 In the source settings, select the camera, action and optionally the preset that the camera should switch to.
 The camera action is executed when either the scene in which the source is used becomes active in preview, in program, or both, depending on the selected entry in the selection.
 
