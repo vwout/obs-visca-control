@@ -212,7 +212,7 @@ end
 plugin_def.create = function(settings, source)
     local data = {}
     local source_sh = obs.obs_source_get_signal_handler(source)
-	obs.signal_handler_connect(source_sh, "activate", sh_on_program)   --Set Active Callback
+	obs.signal_handler_connect(source_sh, "activate", signal_on_activate)
     obs.obs_frontend_add_event_callback(fe_callback)
     return data
 end
@@ -371,7 +371,7 @@ function fe_callback(event, data)
     end
 end
 
-function sh_on_program(calldata)
+function signal_on_activate(calldata)
     local source = obs.calldata_source(calldata, "source")
 	local settings = obs.obs_source_get_settings(source)
     
@@ -388,4 +388,4 @@ function sh_on_program(calldata)
 	obs.obs_data_release(settings)
 end
 
-obs.obs_register_source(plugin_def);
+obs.obs_register_source(plugin_def)
