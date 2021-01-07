@@ -351,11 +351,14 @@ function fe_callback(event, data)
                         if source_id == plugin_def.id then
                             local settings = obs.obs_source_get_settings(source)
                             local source_name = obs.obs_source_get_name(source)
+                            local visible = obs.obs_source_showing(source)
 
-                            local active = obs.obs_data_get_int(settings, "scene_active")
-                            if (active == action_active.Preview) or (active == action_active.Always) then
-                                log("Running Visca for source '%s'", source_name or "?")
-                                do_cam_preset(settings)
+                            if visible then
+                                local active = obs.obs_data_get_int(settings, "scene_active")
+                                if (active == action_active.Preview) or (active == action_active.Always) then
+                                    log("Running Visca for source '%s'", source_name or "?")
+                                    do_cam_preset(settings)
+                                end
                             end
 
                             obs.obs_data_release(settings)
