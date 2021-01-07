@@ -16,8 +16,16 @@ This plugin has been tested with Everet cameras.
 
 ## Installation
 The plugin is a script plugin and utilizes the Lua scripting capabilities of OBS.
-To use the plugin, add the file `obs-visca-control.lua` to OBS under *Script* in the *Tools* menu.
+To use the plugin, add the file `obs-visca-control.lua` as a script, see below for a detailed instruction.
 The other `.lua` files in this repository are also required, but should not be added as scripts in OBS.
+
+The files needed for usage if this plugin are:
+- `obs-visca-control.lua`: The main OBS plugin file
+- `libvisca.lua`: Internal library that implements the Visca communication
+- `ljsocket.lua`: Network (socket) communication library for use with LuaJIT in OBS
+
+Place the files on your computer, e.g. in `data\obs-plugins\frontend-tools\scripts\` under your OBS installation folder. 
+In OBS choose *Scripts* in the *Tools* menu and click the "+" symbol. Navigate to the location where `obs-visca-control.lua` is stored and confirm with 'Open'. The plugin settings will show on the right as described in the below.
 
 ## Configuration
 Before the plugin can be used in a scene, it requires configuration in the `Script` dialog.
