@@ -26,7 +26,6 @@ local actions = {
 }
 
 local action_active = {
-    --Program_PreviewOnly = 0,
     Program = 1,
     Preview = 2,
     Always = 3,
@@ -269,10 +268,11 @@ plugin_def.get_properties = function (data)
     end
 
 	local prop_active = obs.obs_properties_add_list(props, "scene_active", "Action Active:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
-	--obs.obs_property_list_add_string(prop_active, "On Program and on Preview when camera not on Program", action_active.Program_PreviewOnly)
 	obs.obs_property_list_add_int(prop_active, "On Program", action_active.Program)
 	obs.obs_property_list_add_int(prop_active, "On Preview", action_active.Preview)
 	obs.obs_property_list_add_int(prop_active, "Always", action_active.Always)
+
+	obs.obs_properties_add_bool(props, "preview_exclusive", "Run action on preview only when the camera is not active on program")
 
     --obs.obs_properties_add_button(props, "run_action", "Perform action now", cb_run_action)
 
@@ -281,7 +281,7 @@ plugin_def.get_properties = function (data)
 	return props
 end
 
-local function do_cam_preset(settings)
+local function do_cam_action(settings)
     local camera_id = obs.obs_data_get_int(settings, "scene_camera")
     local action = obs.obs_data_get_int(settings, "scene_action")
     
@@ -329,6 +329,47 @@ function cb_camera_changed(props, property, data)
     return changed
 end
 
+local function camera_active_on_program(preview_camera_id)
+    local active = false
+
+    local program_source = obs.obs_frontend_get_current_scene()
+    if program_source ~= nil then
+        local program_scene = obs.obs_scene_from_source(program_source)
+        local program_scene_name = obs.obs_source_get_name(program_source)
+        log("Current program scene is %s", program_scene_name or "?")
+
+        local program_scene_items = obs.obs_scene_enum_items(program_scene)
+        if program_scene_items ~= nil then
+            for _, program_scene_item in ipairs(program_scene_items) do
+                local program_scene_item_source = obs.obs_sceneitem_get_source(program_scene_item)
+                local program_scene_item_source_id = obs.obs_source_get_unversioned_id(program_scene_item_source)
+                if program_scene_item_source_id == plugin_def.id then
+                    local visible = obs.obs_source_showing(program_scene_item_source)
+                    if visible then
+                        local program_item_source_settings = obs.obs_source_get_settings(program_scene_item_source)
+                        if program_item_source_settings ~= nil then
+                            local program_camera_id = obs.obs_data_get_int(program_item_source_settings, "scene_camera")
+                            log("Camera active on preview: %d active on program: %d", preview_camera_id, program_camera_id)
+                            if preview_camera_id == program_camera_id then
+                                active = true
+                                break
+                            end
+
+                            obs.obs_data_release(program_item_source_settings)
+                        end
+                    end
+                end
+            end
+
+            obs.sceneitem_list_release(program_scene_items)
+        end
+
+        obs.obs_source_release(program_source)
+    end
+
+    return active
+end
+
 function fe_callback(event, data)
     if event == obs.OBS_FRONTEND_EVENT_SCENE_CHANGED then
         --local scenesource = obs.obs_frontend_get_current_scene()
@@ -354,10 +395,24 @@ function fe_callback(event, data)
                             local visible = obs.obs_source_showing(source)
 
                             if visible then
+                                local do_action = false
                                 local active = obs.obs_data_get_int(settings, "scene_active")
+
                                 if (active == action_active.Preview) or (active == action_active.Always) then
+                                    do_action = true
+
+                                    local preview_exclusive = obs.obs_data_get_bool(settings, "preview_exclusive")
+                                    if preview_exclusive then
+                                        local preview_camera_id = obs.obs_data_get_int(settings, "scene_camera")
+                                        if camera_active_on_program(preview_camera_id) then
+                                            do_action = false
+                                        end
+                                    end
+                                end
+
+                                if do_action then
                                     log("Running Visca for source '%s'", source_name or "?")
-                                    do_cam_preset(settings)
+                                    do_cam_action(settings)
                                 end
                             end
 
@@ -377,17 +432,17 @@ end
 function signal_on_activate(calldata)
     local source = obs.calldata_source(calldata, "source")
 	local settings = obs.obs_source_get_settings(source)
-    
+
     local do_preset = false
     local active = obs.obs_data_get_int(settings, "scene_active")
     if (active == action_active.Program) or (active == action_active.Always) then
         do_preset = true
     end
 
-    if do_preset then 
-        do_cam_preset(settings)
+    if do_preset then
+        do_cam_action(settings)
     end
-    
+
 	obs.obs_data_release(settings)
 end
 
