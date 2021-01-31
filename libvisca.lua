@@ -91,7 +91,7 @@ function Visca.connect(address, port)
     port = port or Visca.default_port
     local connection = {
         sock        = nil,
-        last_seq_nr = 0,
+        last_seq_nr = 0xFFFFFFFF,
         address     = socket.find_first_address(address, port)
     }
 
@@ -110,7 +110,11 @@ function Visca.connect(address, port)
     end
 
     function connection.send(message)
-        connection.last_seq_nr = connection.last_seq_nr + 1
+        if connection.last_seq_nr < 0xFFFFFFFF then
+            connection.last_seq_nr = connection.last_seq_nr + 1
+        else
+            connection.last_seq_nr = 0
+        end
         message.seq_nr = connection.last_seq_nr
 
         local sock = connection.sock
