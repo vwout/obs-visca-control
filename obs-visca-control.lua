@@ -298,6 +298,7 @@ local function do_cam_action(settings)
     elseif action == actions.Preset_Recal then
         connection.Cam_Preset_Recall(preset_id)
     end
+    connection.close()
 end
 
 function cb_camera_changed(props, property, data)

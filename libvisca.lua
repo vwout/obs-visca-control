@@ -94,23 +94,31 @@ function Visca.connect(address, port)
         last_seq_nr = 0,
         address     = socket.find_first_address(address, port)
     }
-    
-    --local sock = assert(socket.udp())
-    --sock:settimeout(0)
-    --local success, _ = sock:setpeername(address, port)
+
     local sock = assert(socket.create("inet", "dgram", "udp"))
-    local success, err = sock:set_blocking(false)
+    local success, _ = sock:set_blocking(false)
     if success then
         connection.sock = sock
     end
-    
+
+    function connection.close()
+        local sock = connection.sock
+        if sock ~= nil then
+            sock:close()
+            sock = nil
+        end
+    end
+
     function connection.send(message)
         connection.last_seq_nr = connection.last_seq_nr + 1
         message.seq_nr = connection.last_seq_nr
-        
-        --local sock = connection.sock
-        --sock:send(message.to_data())
-        sock:send_to(connection.address, message.to_data())
+
+        local sock = connection.sock
+        if sock ~= nil then
+            return sock:send_to(connection.address, message.to_data())
+        else
+            return 0
+        end
     end
     
     function connection.await_ack_for(message)
