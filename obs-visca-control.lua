@@ -18,6 +18,7 @@ plugin_data = {}
 plugin_data.debug = false
 plugin_data.active_scene = nil
 plugin_data.preview_scene = nil
+plugin_data.connections = {}
 
 local actions = {
     Camera_Off = 0,
@@ -217,6 +218,13 @@ plugin_def.create = function(settings, source)
 end
 
 plugin_def.destroy = function(source)
+    for camera_id, connection in pairs(plugin_data.connections) do
+        if connection ~= nil then
+            connection.close()
+            plugin_data.connections[camera_id] = nil
+        end
+    end
+    plugin_data.connections = {}
 end
 
 plugin_def.get_properties = function (data)
@@ -290,7 +298,12 @@ local function do_cam_action(settings)
     local preset_id = obs.obs_data_get_int(settings, "scene_".. cam_prop_prefix .. "preset")
     
     log("Set cam %d @%s action %d (preset %d)", camera_id, camera_address, action, preset_id)
-    local connection = Visca.connect(camera_address)
+    local connection = plugin_data.connections[camera_id]
+    if connection == nil then
+        connection = Visca.connect(camera_address)
+        plugin_data.connections[camera_id] = connection
+    end
+
     if action == actions.Camera_Off then
         connection.Cam_Power(false)
     elseif action == actions.Camera_On then
@@ -298,7 +311,6 @@ local function do_cam_action(settings)
     elseif action == actions.Preset_Recal then
         connection.Cam_Preset_Recall(preset_id)
     end
-    connection.close()
 end
 
 function cb_camera_changed(props, property, data)
