@@ -34,7 +34,7 @@ Before the plugin can be used in a scene, it requires configuration in the `Scri
 Start by enumerating the number of cameras cameras that you want to control.
 For each camera a set of configuration properties will be shown:
 - Name: A friendly name for easy recognition of the camera
-- Address: The IP address at which the camera is available. The plugin assumes that Visca is operated on port `52381`.
+- Address: The IP address at which the camera is available. The plugin assumes that Visca is operated on _UDP_ port `52381`.
 - The list of presets that you want to configure for the camera
 
 Switch between cameras using the drop-down.
