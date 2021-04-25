@@ -18,6 +18,27 @@ Visca.payload_types = {
     reply   = 0x0201   -- Control reply, Stores the reply for the control command.
 }
 
+Visca.PanTilt_directions = {
+    upleft    = 0x0101,
+    upright   = 0x0201,
+    up        = 0x0301,
+    downleft  = 0x0102,
+    downright = 0x0202,
+    down      = 0x0302,
+    left      = 0x0103,
+    right     = 0x0203,
+    stop      = 0x0303,
+}
+
+Visca.limits = {
+    PAN_MIN_SPEED  = 0x01,
+    PAN_MAX_SPEED  = 0x18,
+    TILT_MIN_SPEED = 0x01,
+    TILT_MAX_SPEED = 0x18,
+    ZOOM_MIN_VALUE = 0x0000,
+    ZOOM_MAX_VALUE = 0x4000,
+}
+
 -- A Visca message is binary data with a message header (8 bytes) and payload (1 to 16 bytes).
 --
 -- Byte:                      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
@@ -78,12 +99,24 @@ function Visca.Message()
             data[8+b] = self.payload[b]
         end
         
-        local str = ""
+        local str_a = {}
         for _,v in ipairs(data) do
-          str = str .. string.char(v)
+          table.insert(str_a, string.char(v))
         end
 
-        return str
+        return table.concat(str_a)
+    end
+    
+    function self.as_string()
+        local bin_str = self.to_data()
+        local bin_len = #(bin_str or "")
+        
+        local str_a = {}
+        for b = 1, bin_len do
+            table.insert(str_a, string.format(' %02X', string.byte(bin_str, b)))
+        end
+
+        return table.concat(str_a)
     end
 
     return self
@@ -119,6 +152,10 @@ function Visca.connect(address, port)
         end
         message.seq_nr = connection.last_seq_nr
 
+        if Visca.debug then
+            print(string.format("Connection send %s", message.as_string()))
+        end
+
         local sock = connection.sock
         if sock ~= nil then
             return sock:send_to(connection.address, message.to_data())
@@ -131,6 +168,16 @@ function Visca.connect(address, port)
     end
     
     function connection.await_completion_for(message)
+    end
+
+    function connection.has_value(tbl, value)
+        for _, v in pairs(tbl) do
+            if v == value then
+                return true
+            end
+        end
+
+        return false
     end
 
     function connection.Cam_Power(on, await_ack, await_completion)
@@ -164,6 +211,127 @@ function Visca.connect(address, port)
         connection.send(msg)
     end
     
+    function connection.Cam_PanTilt(direction, pan_speed, tilt_speed)
+        if connection.has_value(Visca.PanTilt_directions, direction or Visca.PanTilt_directions.stop) then
+            pan_speed = math.min(math.max(pan_speed or 1, Visca.limits.PAN_MIN_SPEED), Visca.limits.PAN_MAX_SPEED)
+            tilt_speed = math.min(math.max(tilt_speed or 1, Visca.limits.TILT_MIN_SPEED), Visca.limits.TILT_MAX_SPEED)
+
+            local msg = Visca.Message()
+            msg.command = Visca.payload_types.command
+            msg.payload = {
+                    0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                    0x01,
+                    0x06,
+                    0x01,
+                    bit.band(pan_speed, 0x1F),  -- lowest 5 bits are only relevant
+                    bit.band(tilt_speed, 0x1F), -- lowest 5 bits are only relevant
+                    bit.band(bit.rshift(direction, 8), 0xFF),
+                    bit.band(direction, 0xFF),
+                    0xFF
+                }
+
+            return connection.send(msg)
+        else
+            if Visca.debug then
+                print(string.format("Cam_PanTilt invalid direction (%d)", direction))
+            end
+            return 0
+        end
+    end
+
+    function connection.Cam_PanTilt_Home()
+        local msg = Visca.Message()
+        msg.command = Visca.payload_types.command
+        msg.payload = {
+                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                0x01,
+                0x06,
+                0x04,
+                0xFF
+            }
+
+        return connection.send(msg)
+    end
+
+    function connection.Cam_PanTilt_Reset()
+        local msg = Visca.Message()
+        msg.command = Visca.payload_types.command
+        msg.payload = {
+                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                0x01,
+                0x06,
+                0x05,
+                0xFF
+            }
+
+        return connection.send(msg)
+    end
+
+    function connection.Cam_Zoom_Stop()
+        local msg = Visca.Message()
+        msg.command = Visca.payload_types.command
+        msg.payload = {
+                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                0x01,
+                0x04,
+                0x07,
+                0x00,
+                0xFF
+            }
+
+        return connection.send(msg)
+    end
+
+    function connection.Cam_Zoom_Tele(speed)
+        local msg = Visca.Message()
+        msg.command = Visca.payload_types.command
+        msg.payload = {
+                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                0x01,
+                0x04,
+                0x07,
+                speed and bit.bor(0x20, bit.band(speed, 0x07)) or 0x02,
+                0xFF
+            }
+
+        return connection.send(msg)
+    end
+
+    function connection.Cam_Zoom_Wide(speed)
+        local msg = Visca.Message()
+        msg.command = Visca.payload_types.command
+        msg.payload = {
+                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                0x01,
+                0x04,
+                0x07,
+                speed and bit.bor(0x30, bit.band(speed, 0x07)) or 0x03,
+                0xFF
+            }
+
+        return connection.send(msg)
+    end
+
+    function connection.Cam_Zoom_To(zoom)
+        zoom = math.min(math.max(zoom or 0, Visca.limits.ZOOM_MIN_VALUE), Visca.limits.ZOOM_MAX_VALUE)
+    
+        local msg = Visca.Message()
+        msg.command = Visca.payload_types.command
+        msg.payload = {
+                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                0x01,
+                0x04,
+                0x47,
+                bit.band(bit.rshift(zoom, 12), 0x0F),
+                bit.band(bit.rshift(zoom, 8), 0x0F),
+                bit.band(bit.rshift(zoom, 4), 0x0F),
+                bit.band(zoom, 0x0F),
+                0xFF
+            }
+
+        return connection.send(msg)
+    end
+
     return connection
 end
 
