@@ -4,6 +4,8 @@ local socket = require("ljsocket")
 local Visca = {}
 
 Visca.default_port = 52381
+Visca.default_camera_nr = 1
+Visca.debug = false
 
 -- Payload type
 -- Stores the value (Byte 0 and Byte 1) of the following table on the payload division
@@ -131,11 +133,11 @@ function Visca.connect(address, port)
     function connection.await_completion_for(message)
     end
 
-    function connection.Cam_Power(on, await_ack, await_completion, camera_nr)
+    function connection.Cam_Power(on, await_ack, await_completion)
         local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
-                0x80 + bit.band(camera_nr or 1,  0x0F),
+                0x80 + bit.band(Visca.default_camera_nr or 1,  0x0F),
                 0x01,
                 0x04,
                 0x00,
@@ -146,11 +148,11 @@ function Visca.connect(address, port)
         connection.send(msg)
     end
     
-    function connection.Cam_Preset_Recall(preset, camera_nr)
+    function connection.Cam_Preset_Recall(preset)
         local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
-                0x80 + bit.band(camera_nr or 1, 0x0F),
+                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
                 0x01,
                 0x04,
                 0x3F,
