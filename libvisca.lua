@@ -18,6 +18,34 @@ Visca.payload_types = {
     reply   = 0x0201   -- Control reply, Stores the reply for the control command.
 }
 
+Visca.packet_consts = {
+    req_addr_base = 0x80,
+    command       = 0x01,
+    inquiry       = 0x09,
+    terminator    = 0xFF
+}
+
+Visca.categories = {
+    interface  = 0x00,
+    camera1    = 0x04,
+    pan_tilter = 0x06,
+    camera2    = 0x07
+}
+
+Visca.command_sets = {
+    power      = 0x00,
+    preset     = 0x3F,
+}
+
+Visca.commands = {
+    preset_recall = 0x02,
+    pantilt_drive = 0x01,
+    pantilt_home  = 0x04,
+    pantilt_reset = 0x05,
+    zoom          = 0x07,
+    zoom_to       = 0x47,
+}
+
 Visca.PanTilt_directions = {
     upleft    = 0x0101,
     upright   = 0x0201,
@@ -184,12 +212,12 @@ function Visca.connect(address, port)
         local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
-                0x80 + bit.band(Visca.default_camera_nr or 1,  0x0F),
-                0x01,
-                0x04,
-                0x00,
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1,  0x0F),
+                Visca.packet_consts.command,
+                Visca.categories.camera1,
+                Visca.command_sets.power,
                 on and 0x02 or 0x03,  -- On = 0x02, Off = 0x03
-                0xFF
+                Visca.packet_consts.terminator
             }
 
         connection.send(msg)
@@ -199,13 +227,13 @@ function Visca.connect(address, port)
         local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
-                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                0x01,
-                0x04,
-                0x3F,
-                0x02,
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.command,
+                Visca.categories.camera1,
+                Visca.command_sets.preset,
+                Visca.commands.preset_recall,
                 bit.band(preset, 0x7F),  -- Preset Number(=0 to 127)
-                0xFF
+                Visca.packet_consts.terminator
             }
         
         connection.send(msg)
@@ -219,15 +247,15 @@ function Visca.connect(address, port)
             local msg = Visca.Message()
             msg.command = Visca.payload_types.command
             msg.payload = {
-                    0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                    0x01,
-                    0x06,
-                    0x01,
+                    Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                    Visca.packet_consts.command,
+                    Visca.categories.pan_tilter,
+                    Visca.commands.pantilt_drive,
                     bit.band(pan_speed, 0x1F),  -- lowest 5 bits are only relevant
                     bit.band(tilt_speed, 0x1F), -- lowest 5 bits are only relevant
                     bit.band(bit.rshift(direction, 8), 0xFF),
                     bit.band(direction, 0xFF),
-                    0xFF
+                    Visca.packet_consts.terminator
                 }
 
             return connection.send(msg)
@@ -243,11 +271,11 @@ function Visca.connect(address, port)
         local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
-                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                0x01,
-                0x06,
-                0x04,
-                0xFF
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.command,
+                Visca.categories.pan_tilter,
+                Visca.commands.pantilt_home,
+                Visca.packet_consts.terminator
             }
 
         return connection.send(msg)
@@ -257,11 +285,11 @@ function Visca.connect(address, port)
         local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
-                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                0x01,
-                0x06,
-                0x05,
-                0xFF
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.command,
+                Visca.categories.pan_tilter,
+                Visca.commands.pantilt_reset,
+                Visca.packet_consts.terminator
             }
 
         return connection.send(msg)
@@ -271,12 +299,12 @@ function Visca.connect(address, port)
         local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
-                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                0x01,
-                0x04,
-                0x07,
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.command,
+                Visca.categories.camera1,
+                Visca.commands.zoom,
                 0x00,
-                0xFF
+                Visca.packet_consts.terminator
             }
 
         return connection.send(msg)
@@ -286,12 +314,12 @@ function Visca.connect(address, port)
         local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
-                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                0x01,
-                0x04,
-                0x07,
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.command,
+                Visca.categories.camera1,
+                Visca.commands.zoom,
                 speed and bit.bor(0x20, bit.band(speed, 0x07)) or 0x02,
-                0xFF
+                Visca.packet_consts.terminator
             }
 
         return connection.send(msg)
@@ -301,12 +329,12 @@ function Visca.connect(address, port)
         local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
-                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                0x01,
-                0x04,
-                0x07,
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.command,
+                Visca.categories.camera1,
+                Visca.commands.zoom,
                 speed and bit.bor(0x30, bit.band(speed, 0x07)) or 0x03,
-                0xFF
+                Visca.packet_consts.terminator
             }
 
         return connection.send(msg)
@@ -318,15 +346,15 @@ function Visca.connect(address, port)
         local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
-                0x80 + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                0x01,
-                0x04,
-                0x47,
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.command,
+                Visca.categories.camera1,
+                Visca.commands.zoom_to,
                 bit.band(bit.rshift(zoom, 12), 0x0F),
                 bit.band(bit.rshift(zoom, 8), 0x0F),
                 bit.band(bit.rshift(zoom, 4), 0x0F),
                 bit.band(zoom, 0x0F),
-                0xFF
+                Visca.packet_consts.terminator
             }
 
         return connection.send(msg)
