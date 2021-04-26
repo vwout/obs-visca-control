@@ -36,7 +36,9 @@ Before the plugin can be used in a scene, it requires configuration in the `Scri
 Start by enumerating the number of cameras cameras that you want to control.
 For each camera a set of configuration properties will be shown:
 - Name: A friendly name for easy recognition of the camera
-- Address: The IP address at which the camera is available. The plugin assumes that Visca is operated on _UDP_ port `52381`.
+- Address: The IP address at which the camera is available.
+- Port: The plugin by default uses _UDP_ port `52381`. Change this port when needed, e.g. to `1259` for a PTZOptics camera.
+- Mode: The operating mode of the plugin. The default is `Generic`, which follows the original (Sony) Visca specification. Other supported modes are `PTZOptics`, to send commands according the PTZOptics Visca protocol.
 - The list of presets that you want to configure for the camera
 
 Switch between cameras using the drop-down.

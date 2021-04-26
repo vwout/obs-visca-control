@@ -68,7 +68,7 @@ local function create_camera_controls(props, camera_id, settings)
             obs.obs_properties_add_int(props, cam_prop_prefix .. "port", "UDP Port" .. cam_name_suffix, 1025, 65535, 1)
             obs.obs_data_set_default_int(plugin_settings, cam_prop_prefix .. "port", Visca.default_port)
         end
-    	local prop_mode = obs.obs_properties_add_list(props, cam_prop_prefix .. "mode", "Mode:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+    	local prop_mode = obs.obs_properties_add_list(props, cam_prop_prefix .. "mode", "Mode" .. cam_name_suffix, obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
     	obs.obs_property_list_add_int(prop_mode, "Generic", Visca.modes.generic)
 	    obs.obs_property_list_add_int(prop_mode, "PTZOptics", Visca.modes.ptzoptics)
         obs.obs_data_set_default_int(plugin_settings, cam_prop_prefix .. "mode", Visca.modes.generic)
