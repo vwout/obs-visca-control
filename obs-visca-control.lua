@@ -3,7 +3,7 @@ Visca = require("libvisca")
 
 plugin_info = {
     name = "Visca Camera Control",
-    version = "1.2",
+    version = "1.3",
     url = "https://github.com/vwout/obs-visca-control",
     description = "Camera control via Visca over IP",
     author = "vwout"
@@ -63,6 +63,15 @@ local function create_camera_controls(props, camera_id, settings)
         if prop_address == nil then
             obs.obs_properties_add_text(props, cam_prop_prefix .. "address", "IP Address" .. cam_name_suffix, obs.OBS_TEXT_DEFAULT)
         end
+        local prop_port = obs.obs_properties_get(props, cam_prop_prefix .. "port")
+        if prop_port == nil then
+            obs.obs_properties_add_int(props, cam_prop_prefix .. "port", "UDP Port" .. cam_name_suffix, 1025, 65535, 1)
+            obs.obs_data_set_default_int(plugin_settings, cam_prop_prefix .. "port", Visca.default_port)
+        end
+    	local prop_mode = obs.obs_properties_add_list(props, cam_prop_prefix .. "mode", "Mode:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+    	obs.obs_property_list_add_int(prop_mode, "Generic", Visca.modes.generic)
+	    obs.obs_property_list_add_int(prop_mode, "PTZOptics", Visca.modes.ptzoptics)
+        obs.obs_data_set_default_int(plugin_settings, cam_prop_prefix .. "mode", Visca.modes.generic)
         local prop_presets = obs.obs_properties_get(props, cam_prop_prefix .. "presets")
         if prop_presets == nil then
             prop_presets = obs.obs_properties_add_editable_list(props, cam_prop_prefix .. "presets", "Presets" .. cam_name_suffix, obs.OBS_EDITABLE_LIST_TYPE_STRINGS, "", "")
@@ -101,7 +110,6 @@ function script_properties()
     end
     
     obs.obs_property_set_modified_callback(cams, prop_set_attrs_values)
-    --obs.obs_properties_apply_settings(props, settings)
 
     return props
 end
@@ -139,7 +147,7 @@ function prop_set_attrs_values(props, property, settings)
         
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
 
-        local cam_props = {"name", "address", "presets", "preset_info"}
+        local cam_props = {"name", "address", "port", "mode", "presets", "preset_info"}
         for _,cam_prop_name in pairs(cam_props) do
             local cam_prop = obs.obs_properties_get(props, cam_prop_prefix .. cam_prop_name)
             if cam_prop then
@@ -295,12 +303,17 @@ local function do_cam_action(settings)
     
     local cam_prop_prefix = string.format("cam_%d_", camera_id)
     local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
+    local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
+    local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
     local preset_id = obs.obs_data_get_int(settings, "scene_".. cam_prop_prefix .. "preset")
     
     log("Set cam %d @%s action %d (preset %d)", camera_id, camera_address, action, preset_id)
     local connection = plugin_data.connections[camera_id]
     if connection == nil then
-        connection = Visca.connect(camera_address)
+        connection = Visca.connect(camera_address, camera_port)
+        if camera_mode then
+            connection.set_mode(camera_mode)
+        end
         plugin_data.connections[camera_id] = connection
     end
 
