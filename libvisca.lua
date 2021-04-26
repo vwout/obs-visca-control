@@ -7,6 +7,11 @@ Visca.default_port = 52381
 Visca.default_camera_nr = 1
 Visca.debug = false
 
+Visca.modes = {
+    generic = 0,
+    ptzoptics = 1
+}
+
 -- Payload type
 -- Stores the value (Byte 0 and Byte 1) of the following table on the payload division
 Visca.payload_types = {
@@ -78,6 +83,7 @@ Visca.limits = {
 -- The wire format is big-endian (LSB first)
 function Visca.Message()
     local self = {
+        command      = 0x00,
         payload_type = 0x0000,
         payload_size = 0x0000,
         seq_nr       = 0x00000000,
@@ -94,39 +100,52 @@ function Visca.Message()
 
     function self.from_data(data)
         local message_length = #(data or "")
-        if message_length >= 9 and message_length <= 24 then
-            self.command      = string.byte(data, 1) * 256 + string.byte(data, 2)
-            self.payload_size = string.byte(data, 3) * 256 + string.byte(data, 4)
-            self.seq_nr       = string.byte(data, 5) * 2^24 +
-                                string.byte(data, 6) * 2*16 +
-                                string.byte(data, 7) * 2*8 +
-                                string.byte(data, 8)
-            for b = 1, self.payload_size do
-                self.payload[b] = string.byte(data, 8 + b)
+        if message_length > 1 then
+            if (string.byte(data, 1) == 0x01 or
+                string.byte(data, 1) == 0x02) and message_length >= 9 and message_length <= 24 then
+                self.command      = string.byte(data, 1) * 256 + string.byte(data, 2)
+                self.payload_size = string.byte(data, 3) * 256 + string.byte(data, 4)
+                self.seq_nr       = string.byte(data, 5) * 2^24 +
+                                    string.byte(data, 6) * 2*16 +
+                                    string.byte(data, 7) * 2*8 +
+                                    string.byte(data, 8)
+
+                for b = 1, self.payload_size do
+                    table.insert(self.payload, string.byte(data, 8 + b))
+                end
+            elseif message_length >= 1 and message_length <= 16 then
+                for b = 1, message_length do
+                    table.insert(self.payload, string.byte(data, b))
+                end
             end
         end
-        
+
         return self
     end
     
-    function self.to_data()
+    function self.to_data(mode)
+        mode = mode or Visca.modes.generic
         self.payload_size = #self.payload
-        
-        local data = {
-            self.msb(self.command),
-            self.lsb(self.command),
-            self.msb(self.payload_size),
-            self.lsb(self.payload_size),
-            bit.band(bit.rshift(self.seq_nr, 24), 0xFF),
-            bit.band(bit.rshift(self.seq_nr, 16), 0xFF),
-            bit.band(bit.rshift(self.seq_nr, 8), 0xFF),
-            bit.band(self.seq_nr, 0xFF),
-        }
+
+        local data = {}
+
+        if mode == Visca.modes.generic then
+            data = {
+                self.msb(self.command),
+                self.lsb(self.command),
+                self.msb(self.payload_size),
+                self.lsb(self.payload_size),
+                bit.band(bit.rshift(self.seq_nr, 24), 0xFF),
+                bit.band(bit.rshift(self.seq_nr, 16), 0xFF),
+                bit.band(bit.rshift(self.seq_nr, 8), 0xFF),
+                bit.band(self.seq_nr, 0xFF),
+            }
+        end
 
         for b = 1, self.payload_size do
-            data[8+b] = self.payload[b]
+            table.insert(data, self.payload[b])
         end
-        
+
         local str_a = {}
         for _,v in ipairs(data) do
           table.insert(str_a, string.char(v))
@@ -135,8 +154,9 @@ function Visca.Message()
         return table.concat(str_a)
     end
     
-    function self.as_string()
-        local bin_str = self.to_data()
+    function self.as_string(mode)
+        mode = mode or Visca.modes.generic
+        local bin_str = self.to_data(mode)
         local bin_len = #(bin_str or "")
         
         local str_a = {}
@@ -155,13 +175,33 @@ function Visca.connect(address, port)
     local connection = {
         sock        = nil,
         last_seq_nr = 0xFFFFFFFF,
-        address     = socket.find_first_address(address, port)
+        address     = socket.find_first_address(address, port),
+        mode        = Visca.modes.generic
     }
 
     local sock = assert(socket.create("inet", "dgram", "udp"))
     local success, _ = sock:set_blocking(false)
     if success then
         connection.sock = sock
+    end
+
+    local function has_value(tbl, value)
+        for _, v in pairs(tbl) do
+            if v == value then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    function connection.set_mode(mode)
+        if has_value(Visca.modes, mode or Visca.modes.generic) then
+            connection.mode = mode
+            return true
+        else
+            return false
+        end
     end
 
     function connection.close()
@@ -181,12 +221,12 @@ function Visca.connect(address, port)
         message.seq_nr = connection.last_seq_nr
 
         if Visca.debug then
-            print(string.format("Connection send %s", message.as_string()))
+            print(string.format("Connection send %s", message.as_string(connection.mode)))
         end
 
         local sock = connection.sock
         if sock ~= nil then
-            return sock:send_to(connection.address, message.to_data())
+            return sock:send_to(connection.address, message.to_data(connection.mode))
         else
             return 0
         end
@@ -196,16 +236,6 @@ function Visca.connect(address, port)
     end
     
     function connection.await_completion_for(message)
-    end
-
-    function connection.has_value(tbl, value)
-        for _, v in pairs(tbl) do
-            if v == value then
-                return true
-            end
-        end
-
-        return false
     end
 
     function connection.Cam_Power(on, await_ack, await_completion)
@@ -240,7 +270,7 @@ function Visca.connect(address, port)
     end
     
     function connection.Cam_PanTilt(direction, pan_speed, tilt_speed)
-        if connection.has_value(Visca.PanTilt_directions, direction or Visca.PanTilt_directions.stop) then
+        if has_value(Visca.PanTilt_directions, direction or Visca.PanTilt_directions.stop) then
             pan_speed = math.min(math.max(pan_speed or 1, Visca.limits.PAN_MIN_SPEED), Visca.limits.PAN_MAX_SPEED)
             tilt_speed = math.min(math.max(tilt_speed or 1, Visca.limits.TILT_MIN_SPEED), Visca.limits.TILT_MAX_SPEED)
 
