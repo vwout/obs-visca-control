@@ -12,18 +12,25 @@ plugin_info = {
 plugin_settings = {}
 plugin_def = {}
 plugin_def.id = "Visca_Control"
-plugin_def.type = obs.OBS_SOURCE_TYPE_INPUT;
+plugin_def.type = obs.OBS_SOURCE_TYPE_INPUT
 plugin_def.output_flags = bit.bor(obs.OBS_SOURCE_CUSTOM_DRAW)
 plugin_data = {}
 plugin_data.debug = false
 plugin_data.active_scene = nil
 plugin_data.preview_scene = nil
 plugin_data.connections = {}
+plugin_data.hotkeys = {}
 
 local actions = {
     Camera_Off = 0,
     Camera_On  = 1,
     Preset_Recal = 2,
+    Pan_Left = 3,
+    Pan_Right = 4,
+    Tilt_Up = 5,
+    Tilt_Down = 6,
+    Zoom_In = 7,
+    Zoom_Out = 8
 }
 
 local action_active = {
@@ -80,6 +87,55 @@ local function create_camera_controls(props, camera_id, settings)
     end
 end
 
+local function do_cam_action(camera_id, camera_action, action_arg)
+    local cam_prop_prefix = string.format("cam_%d_", camera_id)
+    local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
+    local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
+    local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
+
+    log("Set cam %d @%s action %d (arg %d)", camera_id, camera_address, camera_action, action_arg or 0)
+    local connection = plugin_data.connections[camera_id]
+    if connection == nil then
+        connection = Visca.connect(camera_address, camera_port)
+        if camera_mode then
+            connection.set_mode(camera_mode)
+        end
+        plugin_data.connections[camera_id] = connection
+    end
+
+    if camera_action == actions.Camera_Off then
+        connection.Cam_Power(false)
+    elseif camera_action == actions.Camera_On then
+        connection.Cam_Power(true)
+    elseif camera_action == actions.Preset_Recal then
+        connection.Cam_Preset_Recall(action_arg)
+    elseif camera_action == actions.Pan_Left then
+        connection.Cam_PanTilt(Visca.PanTilt_directions.left)
+        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+    elseif camera_action == actions.Pan_Right then
+        connection.Cam_PanTilt(Visca.PanTilt_directions.right)
+        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+    elseif camera_action == actions.Tilt_Up then
+        connection.Cam_PanTilt(Visca.PanTilt_directions.up)
+        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+    elseif camera_action == actions.Tilt_Down then
+        connection.Cam_PanTilt(Visca.PanTilt_directions.down)
+        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+    elseif camera_action == actions.Zoom_In then
+        connection.Cam_Zoom_Tele()
+        connection.Cam_Zoom_Stop()
+    elseif camera_action == actions.Zoom_Out then
+        connection.Cam_Zoom_Wide()
+        connection.Cam_Zoom_Stop()
+    end
+end
+
+local function cb_camera_hotkey(pressed, hotkey_data)
+    if pressed then
+        do_cam_action(hotkey_data.camera_id, hotkey_data.action)
+    end
+end
+
 function script_description()
     return "<b>" .. plugin_info.description .. "</b><br>" ..
            "Version: " .. plugin_info.version .. "<br>" ..
@@ -93,6 +149,52 @@ end
 
 function script_update(settings)
     plugin_settings = settings
+end
+
+function script_save(settings)
+    for _,hotkey in pairs(plugin_data.hotkeys) do
+        local a = obs.obs_hotkey_save(hotkey.id)
+        obs.obs_data_set_array(settings, hotkey.name .. "_hotkey", a)
+        obs.obs_data_array_release(a)
+    end
+end
+
+function script_load(settings)
+    local hotkey_actions = {
+        { name = "pan_left", descr = "Pan Left", action = actions.Pan_Left },
+        { name = "pan_right", descr = "Pan Right", action = actions.Pan_Right},
+        { name = "tilt_up", descr = "Tilt Up", action = actions.Tilt_Up},
+        { name = "tilt_down", descr = "Tilt Down", action = actions.Tilt_Down},
+        { name = "zoom_in", descr = "Zoom In", action = actions.Zoom_In},
+        { name = "zoom_out", descr = "Zoom Out", action = actions.Zoom_Out },
+    }
+
+    local num_cameras = obs.obs_data_get_int(settings, "num_cameras")
+    for camera_id = 1,num_cameras do
+        local cam_prop_prefix = string.format("cam_%d_", camera_id)
+        local cam_name = obs.obs_data_get_string(settings, cam_prop_prefix .. "name")
+        if #cam_name == 0 then
+            cam_name = string.format("Camera %d", camera_id)
+        end
+
+        for _,v in pairs(hotkey_actions) do
+            local hotkey_name = cam_prop_prefix .. v.name
+            local hotkey_id = obs.obs_hotkey_register_frontend(hotkey_name, v.descr .. " " .. cam_name, function(pressed)
+                    cb_camera_hotkey(pressed, { name = hotkey_name, camera_id = camera_id, action = v.action })
+                end)
+
+            local a = obs.obs_data_get_array(settings, hotkey_name .. "_hotkey")
+            obs.obs_hotkey_load(hotkey_id, a)
+            obs.obs_data_array_release(a)
+
+            table.insert(plugin_data.hotkeys, {
+                name = hotkey_name,
+                id = hotkey_id,
+                camera_id = camera_id,
+                action = v.action
+            })
+        end
+    end
 end
 
 function script_properties()
@@ -297,33 +399,12 @@ plugin_def.get_properties = function (data)
 	return props
 end
 
-local function do_cam_action(settings)
+local function do_cam_scene_action(settings)
     local camera_id = obs.obs_data_get_int(settings, "scene_camera")
-    local action = obs.obs_data_get_int(settings, "scene_action")
-    
-    local cam_prop_prefix = string.format("cam_%d_", camera_id)
-    local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
-    local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
-    local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
+    local scene_action = obs.obs_data_get_int(settings, "scene_action")
     local preset_id = obs.obs_data_get_int(settings, "scene_".. cam_prop_prefix .. "preset")
-    
-    log("Set cam %d @%s action %d (preset %d)", camera_id, camera_address, action, preset_id)
-    local connection = plugin_data.connections[camera_id]
-    if connection == nil then
-        connection = Visca.connect(camera_address, camera_port)
-        if camera_mode then
-            connection.set_mode(camera_mode)
-        end
-        plugin_data.connections[camera_id] = connection
-    end
 
-    if action == actions.Camera_Off then
-        connection.Cam_Power(false)
-    elseif action == actions.Camera_On then
-        connection.Cam_Power(true)
-    elseif action == actions.Preset_Recal then
-        connection.Cam_Preset_Recall(preset_id)
-    end
+    do_cam_action(camera_id, scene_action, preset_id)
 end
 
 function cb_camera_changed(props, property, data)
@@ -438,7 +519,7 @@ function fe_callback(event, data)
 
                                 if do_action then
                                     log("Running Visca for source '%s'", source_name or "?")
-                                    do_cam_action(settings)
+                                    do_cam_scene_action(settings)
                                 end
                             end
 
@@ -466,7 +547,7 @@ function signal_on_activate(calldata)
     end
 
     if do_preset then
-        do_cam_action(settings)
+        do_cam_scene_action(settings)
     end
 
 	obs.obs_data_release(settings)
