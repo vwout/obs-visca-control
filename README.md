@@ -59,5 +59,12 @@ To control a camera, add a `Visca Camera Control` source to a scene.
 In the source settings, select the camera, action and optionally the preset that the camera should switch to.
 The camera action is executed when either the scene in which the source is used becomes active in preview, in program, or both, depending on the selected entry in the selection.
 
+The actions Zoom, Pan and Tilt are not available as scene action. To use these actions, configure a hotkey in the global OBS setttings. 
+![Hotkey configuration](images/docs/hotkey_settings.png)
+
+Pressing the configured key combination will perform an immediate zoom, pan or tilt step at the camera.
+The amount of effective zoom, pan or tilt may vary from camera to camera.
+The actions will obviously only be executed when the camera actually supports zooming, panning or tilting. 
+
 # Credits
 This plugin uses [luajitsocket](https://github.com/CapsAdmin/luajitsocket/), a library that implements socket support for LuaJIT, since the Lua socket library is not available in OBS.
