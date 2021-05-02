@@ -402,6 +402,7 @@ end
 local function do_cam_scene_action(settings)
     local camera_id = obs.obs_data_get_int(settings, "scene_camera")
     local scene_action = obs.obs_data_get_int(settings, "scene_action")
+    local cam_prop_prefix = string.format("cam_%d_", camera_id)
     local preset_id = obs.obs_data_get_int(settings, "scene_".. cam_prop_prefix .. "preset")
 
     do_cam_action(camera_id, scene_action, preset_id)
