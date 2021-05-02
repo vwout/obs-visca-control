@@ -12,9 +12,9 @@ Besides recalling a pre-made preset, this plugin supports a few more control ope
 - Zoom (Stop, In - Tele, Out - Wide, Direct)
 - Pan/Tilt (Up, Down, Left, Right, Upleft, Upright, Downleft, Downright, Stop, Home, Reset)
 
-This plugin requires the camera to support Visca over IP.
-It follows the specification as designed by Sony.
-This plugin has been tested with Everet cameras and is also reported to work with Avonic, BZB Gear and Zowietek cameras.
+This plugin requires the camera to support Visca over IP via UDP.
+It follows the specification as designed by Sony and also supports the PTZOptics variant of Visca.
+This plugin has been tested with Everet cameras and is also reported to work with Avonic, BZB Gear, PTZOptics and Zowietek cameras.
 
 ## Installation
 The plugin is a script plugin and utilizes the Lua scripting capabilities of OBS.
