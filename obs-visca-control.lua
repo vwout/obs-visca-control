@@ -15,7 +15,7 @@ plugin_def.id = "Visca_Control"
 plugin_def.type = obs.OBS_SOURCE_TYPE_INPUT
 plugin_def.output_flags = bit.bor(obs.OBS_SOURCE_CUSTOM_DRAW)
 plugin_data = {}
-plugin_data.debug = false
+plugin_data.debug = true
 plugin_data.active_scene = nil
 plugin_data.preview_scene = nil
 plugin_data.connections = {}
@@ -87,13 +87,13 @@ local function create_camera_controls(props, camera_id, settings)
     end
 end
 
-local function do_cam_action(camera_id, camera_action, action_arg)
+local function do_cam_action_start(camera_id, camera_action, action_arg)
     local cam_prop_prefix = string.format("cam_%d_", camera_id)
     local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
     local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
     local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
 
-    log("Set cam %d @%s action %d (arg %d)", camera_id, camera_address, camera_action, action_arg or 0)
+    log("Start cam %d @%s action %d (arg %d)", camera_id, camera_address, camera_action, action_arg or 0)
     local connection = plugin_data.connections[camera_id]
     if connection == nil then
         connection = Visca.connect(camera_address, camera_port)
@@ -110,29 +110,56 @@ local function do_cam_action(camera_id, camera_action, action_arg)
     elseif camera_action == actions.Preset_Recal then
         connection.Cam_Preset_Recall(action_arg)
     elseif camera_action == actions.Pan_Left then
-        connection.Cam_PanTilt(Visca.PanTilt_directions.left)
-        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+        connection.Cam_PanTilt(Visca.PanTilt_directions.left, 3)
     elseif camera_action == actions.Pan_Right then
-        connection.Cam_PanTilt(Visca.PanTilt_directions.right)
-        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+        connection.Cam_PanTilt(Visca.PanTilt_directions.right, 3)
     elseif camera_action == actions.Tilt_Up then
-        connection.Cam_PanTilt(Visca.PanTilt_directions.up)
-        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+        connection.Cam_PanTilt(Visca.PanTilt_directions.up, 3)
     elseif camera_action == actions.Tilt_Down then
-        connection.Cam_PanTilt(Visca.PanTilt_directions.down)
-        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+        connection.Cam_PanTilt(Visca.PanTilt_directions.down, 3)
     elseif camera_action == actions.Zoom_In then
         connection.Cam_Zoom_Tele()
-        connection.Cam_Zoom_Stop()
     elseif camera_action == actions.Zoom_Out then
         connection.Cam_Zoom_Wide()
+    end
+end
+
+local function do_cam_action_stop(camera_id, camera_action, action_arg)
+    local cam_prop_prefix = string.format("cam_%d_", camera_id)
+    local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
+    local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
+    local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
+
+    log("Stop cam %d @%s action %d (arg %d)", camera_id, camera_address, camera_action, action_arg or 0)
+    local connection = plugin_data.connections[camera_id]
+    if connection == nil then
+        connection = Visca.connect(camera_address, camera_port)
+        if camera_mode then
+            connection.set_mode(camera_mode)
+        end
+        plugin_data.connections[camera_id] = connection
+    end
+
+if camera_action == actions.Pan_Left then
+        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+    elseif camera_action == actions.Pan_Right then
+        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+    elseif camera_action == actions.Tilt_Up then
+        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+    elseif camera_action == actions.Tilt_Down then
+        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+    elseif camera_action == actions.Zoom_In then
+        connection.Cam_Zoom_Stop()
+    elseif camera_action == actions.Zoom_Out then
         connection.Cam_Zoom_Stop()
     end
 end
 
 local function cb_camera_hotkey(pressed, hotkey_data)
     if pressed then
-        do_cam_action(hotkey_data.camera_id, hotkey_data.action)
+        do_cam_action_start(hotkey_data.camera_id, hotkey_data.action)
+    else
+        do_cam_action_stop(hotkey_data.camera_id, hotkey_data.action)
     end
 end
 
@@ -405,7 +432,7 @@ local function do_cam_scene_action(settings)
     local cam_prop_prefix = string.format("cam_%d_", camera_id)
     local preset_id = obs.obs_data_get_int(settings, "scene_".. cam_prop_prefix .. "preset")
 
-    do_cam_action(camera_id, scene_action, preset_id)
+    do_cam_action_start(camera_id, scene_action, preset_id)
 end
 
 function cb_camera_changed(props, property, data)
