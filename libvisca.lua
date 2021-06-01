@@ -172,17 +172,23 @@ end
 
 function Visca.connect(address, port)
     port = port or Visca.default_port
+    local sock_addr, sock_err = socket.find_first_address(address, port)
+    local error
     local connection = {
         sock        = nil,
         last_seq_nr = 0xFFFFFFFF,
-        address     = socket.find_first_address(address, port),
+        address     = sock_addr,
         mode        = Visca.modes.generic
     }
 
-    local sock = assert(socket.create("inet", "dgram", "udp"))
-    local success, _ = sock:set_blocking(false)
-    if success then
-        connection.sock = sock
+    if sock_addr then
+        local sock = assert(socket.create("inet", "dgram", "udp"))
+        local success, _ = sock:set_blocking(false)
+        if success then
+            connection.sock = sock
+        end
+    else
+        error = string.format("Unable to connect to %s: %s", address, sock_err)
     end
 
     local function has_value(tbl, value)
@@ -390,7 +396,11 @@ function Visca.connect(address, port)
         return connection.send(msg)
     end
 
-    return connection
+    if connection.sock then
+        return connection
+    else
+        return nil, error
+    end
 end
 
 return Visca

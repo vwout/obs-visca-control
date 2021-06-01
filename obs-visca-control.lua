@@ -96,31 +96,38 @@ local function do_cam_action_start(camera_id, camera_action, action_arg)
     log("Start cam %d @%s action %d (arg %d)", camera_id, camera_address, camera_action, action_arg or 0)
     local connection = plugin_data.connections[camera_id]
     if connection == nil then
-        connection = Visca.connect(camera_address, camera_port)
-        if camera_mode then
-            connection.set_mode(camera_mode)
+        local connection_error = ""
+        connection, connection_error = Visca.connect(camera_address, camera_port)
+        if connection then
+            if camera_mode then
+                connection.set_mode(camera_mode)
+            end
+            plugin_data.connections[camera_id] = connection
+        else
+            log(connection_error)
         end
-        plugin_data.connections[camera_id] = connection
     end
 
-    if camera_action == actions.Camera_Off then
-        connection.Cam_Power(false)
-    elseif camera_action == actions.Camera_On then
-        connection.Cam_Power(true)
-    elseif camera_action == actions.Preset_Recal then
-        connection.Cam_Preset_Recall(action_arg)
-    elseif camera_action == actions.Pan_Left then
-        connection.Cam_PanTilt(Visca.PanTilt_directions.left, 3)
-    elseif camera_action == actions.Pan_Right then
-        connection.Cam_PanTilt(Visca.PanTilt_directions.right, 3)
-    elseif camera_action == actions.Tilt_Up then
-        connection.Cam_PanTilt(Visca.PanTilt_directions.up, 3)
-    elseif camera_action == actions.Tilt_Down then
-        connection.Cam_PanTilt(Visca.PanTilt_directions.down, 3)
-    elseif camera_action == actions.Zoom_In then
-        connection.Cam_Zoom_Tele()
-    elseif camera_action == actions.Zoom_Out then
-        connection.Cam_Zoom_Wide()
+    if connection then
+        if camera_action == actions.Camera_Off then
+            connection.Cam_Power(false)
+        elseif camera_action == actions.Camera_On then
+            connection.Cam_Power(true)
+        elseif camera_action == actions.Preset_Recal then
+            connection.Cam_Preset_Recall(action_arg)
+        elseif camera_action == actions.Pan_Left then
+            connection.Cam_PanTilt(Visca.PanTilt_directions.left, 3)
+        elseif camera_action == actions.Pan_Right then
+            connection.Cam_PanTilt(Visca.PanTilt_directions.right, 3)
+        elseif camera_action == actions.Tilt_Up then
+            connection.Cam_PanTilt(Visca.PanTilt_directions.up, 3)
+        elseif camera_action == actions.Tilt_Down then
+            connection.Cam_PanTilt(Visca.PanTilt_directions.down, 3)
+        elseif camera_action == actions.Zoom_In then
+            connection.Cam_Zoom_Tele()
+        elseif camera_action == actions.Zoom_Out then
+            connection.Cam_Zoom_Wide()
+        end
     end
 end
 
@@ -133,25 +140,32 @@ local function do_cam_action_stop(camera_id, camera_action, action_arg)
     log("Stop cam %d @%s action %d (arg %d)", camera_id, camera_address, camera_action, action_arg or 0)
     local connection = plugin_data.connections[camera_id]
     if connection == nil then
-        connection = Visca.connect(camera_address, camera_port)
-        if camera_mode then
-            connection.set_mode(camera_mode)
+        local connection_error = ""
+        connection, connection_error = Visca.connect(camera_address, camera_port)
+        if connection then
+            if camera_mode then
+                connection.set_mode(camera_mode)
+            end
+            plugin_data.connections[camera_id] = connection
+        else
+            log(connection_error)
         end
-        plugin_data.connections[camera_id] = connection
     end
 
-if camera_action == actions.Pan_Left then
-        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
-    elseif camera_action == actions.Pan_Right then
-        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
-    elseif camera_action == actions.Tilt_Up then
-        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
-    elseif camera_action == actions.Tilt_Down then
-        connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
-    elseif camera_action == actions.Zoom_In then
-        connection.Cam_Zoom_Stop()
-    elseif camera_action == actions.Zoom_Out then
-        connection.Cam_Zoom_Stop()
+    if connection then
+        if camera_action == actions.Pan_Left then
+            connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+        elseif camera_action == actions.Pan_Right then
+            connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+        elseif camera_action == actions.Tilt_Up then
+            connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+        elseif camera_action == actions.Tilt_Down then
+            connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+        elseif camera_action == actions.Zoom_In then
+            connection.Cam_Zoom_Stop()
+        elseif camera_action == actions.Zoom_Out then
+            connection.Cam_Zoom_Stop()
+        end
     end
 end
 
