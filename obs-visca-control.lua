@@ -95,6 +95,14 @@ local function do_cam_action_start(camera_id, camera_action, action_arg)
 
     log("Start cam %d @%s action %d (arg %d)", camera_id, camera_address, camera_action, action_arg or 0)
     local connection = plugin_data.connections[camera_id]
+
+    -- Force close connection before sending On-command to prevent usage of a dead connection
+    if connection ~= nil and camera_action == actions.Camera_On then
+        connection.close()
+        connection = nil
+        plugin_data.connections[camera_id] = nil
+    end
+
     if connection == nil then
         local connection_error = ""
         connection, connection_error = Visca.connect(camera_address, camera_port)
@@ -111,6 +119,10 @@ local function do_cam_action_start(camera_id, camera_action, action_arg)
     if connection then
         if camera_action == actions.Camera_Off then
             connection.Cam_Power(false)
+
+            -- Force close connection after sending Off-command.
+            connection.close()
+            plugin_data.connections[camera_id] = nil
         elseif camera_action == actions.Camera_On then
             connection.Cam_Power(true)
         elseif camera_action == actions.Preset_Recal then
