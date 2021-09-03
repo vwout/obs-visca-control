@@ -21,6 +21,8 @@ plugin_data.preview_scene = nil
 plugin_data.connections = {}
 plugin_data.hotkeys = {}
 
+local previous_actions = {}
+
 local actions = {
     Camera_Off = 0,
     Camera_On  = 1,
@@ -30,7 +32,18 @@ local actions = {
     Tilt_Up = 5,
     Tilt_Down = 6,
     Zoom_In = 7,
-    Zoom_Out = 8
+    Zoom_Out = 8,
+    Preset_1 = 9,
+    Preset_2 = 10,
+    Preset_3 = 11,
+    Preset_4 = 12,
+    Preset_5 = 13,
+    Preset_6 = 14,
+    Preset_7 = 15,
+    Preset_8 = 16,
+    Preset_9 = 17,
+    Animate = 18,
+    Slow_Pan_Right = 19,
 }
 
 local action_active = {
@@ -87,13 +100,13 @@ local function create_camera_controls(props, camera_id, settings)
     end
 end
 
-local function do_cam_action_start(camera_id, camera_action, action_arg)
+local function do_cam_action_start(camera_id, camera_action, action_arg, scene_animation_direction, scene_animation_speed)
     local cam_prop_prefix = string.format("cam_%d_", camera_id)
     local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
     local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
     local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
 
-    log("Start cam %d @%s action %d (arg %d)", camera_id, camera_address, camera_action, action_arg or 0)
+    log("Start cam %d @%s action %d (arg %d, anim %d, speed %f)", camera_id, camera_address, camera_action, action_arg or 0, scene_animation_direction or 0, scene_animation_speed or 0)
     local connection = plugin_data.connections[camera_id]
 
     -- Force close connection before sending On-command to prevent usage of a dead connection
@@ -123,6 +136,7 @@ local function do_cam_action_start(camera_id, camera_action, action_arg)
             -- Force close connection after sending Off-command.
             connection.close()
             plugin_data.connections[camera_id] = nil
+            return
         elseif camera_action == actions.Camera_On then
             connection.Cam_Power(true)
         elseif camera_action == actions.Preset_Recal then
@@ -139,6 +153,26 @@ local function do_cam_action_start(camera_id, camera_action, action_arg)
             connection.Cam_Zoom_Tele()
         elseif camera_action == actions.Zoom_Out then
             connection.Cam_Zoom_Wide()
+        elseif camera_action == actions.Preset_1 then
+            connection.Cam_Preset_Recall(0)
+        elseif camera_action == actions.Preset_2 then
+            connection.Cam_Preset_Recall(1)
+        elseif camera_action == actions.Preset_3 then
+            connection.Cam_Preset_Recall(2)
+        elseif camera_action == actions.Preset_4 then
+            connection.Cam_Preset_Recall(3)
+        elseif camera_action == actions.Preset_5 then
+            connection.Cam_Preset_Recall(4)
+        elseif camera_action == actions.Preset_6 then
+            connection.Cam_Preset_Recall(5)
+        elseif camera_action == actions.Preset_7 then
+            connection.Cam_Preset_Recall(6)
+        elseif camera_action == actions.Preset_8 then
+            connection.Cam_Preset_Recall(7)
+        elseif camera_action == actions.Preset_9 then
+            connection.Cam_Preset_Recall(8)
+        elseif camera_action == actions.Animate then
+            connection.Cam_PanTilt(scene_animation_direction, scene_animation_speed)
         end
     end
 end
@@ -149,7 +183,7 @@ local function do_cam_action_stop(camera_id, camera_action, action_arg)
     local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
     local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
 
-    log("Stop cam %d @%s action %d (arg %d)", camera_id, camera_address, camera_action, action_arg or 0)
+    log("Stop cam %d @%s action %d (arg %d)", camera_id, camera_address, camera_action or 0, action_arg or 0)
     local connection = plugin_data.connections[camera_id]
     if connection == nil then
         local connection_error = ""
@@ -177,6 +211,8 @@ local function do_cam_action_stop(camera_id, camera_action, action_arg)
             connection.Cam_Zoom_Stop()
         elseif camera_action == actions.Zoom_Out then
             connection.Cam_Zoom_Stop()
+        elseif camera_action == actions.Animate then
+            connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
         end
     end
 end
@@ -220,6 +256,15 @@ function script_load(settings)
         { name = "tilt_down", descr = "Tilt Down", action = actions.Tilt_Down},
         { name = "zoom_in", descr = "Zoom In", action = actions.Zoom_In},
         { name = "zoom_out", descr = "Zoom Out", action = actions.Zoom_Out },
+        { name = "preset_1", descr = "Preset 1", action = actions.Preset_1 },
+        { name = "preset_2", descr = "Preset 2", action = actions.Preset_2 },
+        { name = "preset_3", descr = "Preset 3", action = actions.Preset_3 },
+        { name = "preset_4", descr = "Preset 4", action = actions.Preset_4 },
+        { name = "preset_5", descr = "Preset 5", action = actions.Preset_5 },
+        { name = "preset_6", descr = "Preset 6", action = actions.Preset_6 },
+        { name = "preset_7", descr = "Preset 7", action = actions.Preset_7 },
+        { name = "preset_8", descr = "Preset 8", action = actions.Preset_8 },
+        { name = "preset_9", descr = "Preset 9", action = actions.Preset_9 },
     }
 
     local num_cameras = obs.obs_data_get_int(settings, "num_cameras")
@@ -263,6 +308,8 @@ function script_properties()
     for camera_id = 1, num_cameras do
         create_camera_controls(props, camera_id, plugin_settings)
     end
+    
+    local debug = obs.obs_properties_add_bool(props, "debug", "debug log (needs refresh)")
     
     obs.obs_property_set_modified_callback(cams, prop_set_attrs_values)
 
@@ -313,6 +360,8 @@ function prop_set_attrs_values(props, property, settings)
             end
         end
     end
+
+    plugin_data.debug = obs.obs_data_get_bool(plugin_settings, "debug")
     
     return changed
 end
@@ -375,8 +424,9 @@ end
 plugin_def.create = function(settings, source)
     local data = {}
     local source_sh = obs.obs_source_get_signal_handler(source)
-	obs.signal_handler_connect(source_sh, "activate", signal_on_activate)
     obs.obs_frontend_add_event_callback(fe_callback)
+	obs.signal_handler_connect(source_sh, "deactivate", signal_on_deactivate)
+	obs.signal_handler_connect(source_sh, "activate", signal_on_activate)
     return data
 end
 
@@ -400,6 +450,15 @@ plugin_def.get_properties = function (data)
 	obs.obs_property_list_add_int(prop_action, "Camera Off", actions.Camera_Off)
 	obs.obs_property_list_add_int(prop_action, "Camera On", actions.Camera_On)
 	obs.obs_property_list_add_int(prop_action, "Preset Recall", actions.Preset_Recal)
+	obs.obs_property_list_add_int(prop_action, "Animation", actions.Animate)
+
+    
+	local prop_animation = obs.obs_properties_add_list(props, "scene_animation_direction", "Animation Direction:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+	obs.obs_property_list_add_int(prop_animation, "None", 0)
+    for _type, _number in pairs(Visca.PanTilt_directions) do
+        obs.obs_property_list_add_int(prop_animation, _type, _number)
+    end
+	local prop_animation_speed = obs.obs_properties_add_float_slider(props, "scene_animation_speed", "Animation Speed:", Visca.limits.PAN_MIN_SPEED, Visca.limits.PAN_MAX_SPEED, 0.1)
     
     for camera_id = 1, num_cameras do
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
@@ -452,13 +511,16 @@ plugin_def.get_properties = function (data)
 	return props
 end
 
-local function do_cam_scene_action(settings)
+local function do_cam_scene_action(settings, source_name)
     local camera_id = obs.obs_data_get_int(settings, "scene_camera")
     local scene_action = obs.obs_data_get_int(settings, "scene_action")
+    local scene_animation_direction = obs.obs_data_get_int(settings, "scene_animation_direction")
+    local scene_animation_speed = obs.obs_data_get_double(settings, "scene_animation_speed")
     local cam_prop_prefix = string.format("cam_%d_", camera_id)
     local preset_id = obs.obs_data_get_int(settings, "scene_".. cam_prop_prefix .. "preset")
 
-    do_cam_action_start(camera_id, scene_action, preset_id)
+    do_cam_action_start(camera_id, scene_action, preset_id, scene_animation_direction, scene_animation_speed)
+    table.insert(previous_actions, {camera_id=camera_id, scene_action=scene_action, source_name=source_name})
 end
 
 function cb_camera_changed(props, property, data)
@@ -534,7 +596,7 @@ end
 function fe_callback(event, data)
     if event == obs.OBS_FRONTEND_EVENT_SCENE_CHANGED then
         --local scenesource = obs.obs_frontend_get_current_scene()
-        --log("fe_callback OBS_FRONTEND_EVENT_SCENE_CHANGED to %s", plugin_data.active_scene or "?")
+        -- log("fe_callback OBS_FRONTEND_EVENT_SCENE_CHANGED to %s", plugin_data.active_scene or "?")
         --obs.obs_source_release(scenesource)
     elseif event == obs.OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED then
         local scenesource = obs.obs_frontend_get_current_preview_scene()
@@ -544,6 +606,12 @@ function fe_callback(event, data)
             if plugin_data.preview_scene ~= scene_name then
                 plugin_data.preview_scene = scene_name
                 log("OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED to %s", scene_name or "?")
+
+                for a,data in pairs(previous_actions) do
+                    log("preview camera stop")
+                    do_cam_action_stop(data.camera_id, data.scene_action)
+                end
+                previous_actions = {}
 
                 local scene_items = obs.obs_scene_enum_items(scene)
                 if scene_items ~= nil then
@@ -573,7 +641,7 @@ function fe_callback(event, data)
 
                                 if do_action then
                                     log("Running Visca for source '%s'", source_name or "?")
-                                    do_cam_scene_action(settings)
+                                    do_cam_scene_action(settings, source_name)
                                 end
                             end
 
@@ -593,18 +661,37 @@ end
 function signal_on_activate(calldata)
     local source = obs.calldata_source(calldata, "source")
 	local settings = obs.obs_source_get_settings(source)
+	local source_name = obs.obs_source_get_name(source)
 
-    local do_preset = false
+    local do_action = false
     local active = obs.obs_data_get_int(settings, "scene_active")
     if (active == action_active.Program) or (active == action_active.Always) then
-        do_preset = true
+        do_action = true
     end
 
-    if do_preset then
-        do_cam_scene_action(settings)
+    if do_action then
+        do_cam_scene_action(settings, source_name)
     end
 
 	obs.obs_data_release(settings)
+end
+
+function signal_on_deactivate(calldata)
+    local source = obs.calldata_source(calldata, "source")
+	local source_name = obs.obs_source_get_name(source)
+    for a, data in pairs(previous_actions) do
+        -- log("pair %d action %s %s", a, data.source_name or 0, source_name)
+        if data.source_name == source_name and data.scene_action == actions.Animate then
+            if previous_actions[a+1] == nil then  -- only stop if there is no newer action
+                log("Camera stopping action of %s with action type %d", source_name, data.scene_action or 0)
+                do_cam_action_stop(data.camera_id, data.scene_action)
+                -- table.remove(previous_actions, a)
+            else
+                log("Newest action exists (is %s) not stopping camera action", previous_actions[a+1].source_name)
+            end
+            previous_actions = {}
+        end
+    end
 end
 
 obs.obs_register_source(plugin_def)
