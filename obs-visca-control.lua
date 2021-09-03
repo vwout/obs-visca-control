@@ -43,7 +43,6 @@ local actions = {
     Preset_8 = 16,
     Preset_9 = 17,
     Animate = 18,
-    Slow_Pan_Right = 19,
 }
 
 local action_active = {
