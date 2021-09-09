@@ -45,7 +45,25 @@ local function log(fmt, ...)
         local info = debug.getinfo(2, "nl")
         local func = info.name or "?"
         local line = info.currentline
-        print(string.format("%s (%d): %s", func, line, string.format(fmt, unpack(arg or {...}))))
+
+        args = {}
+        for i,a in ipairs(arg or {...}) do
+            if type(a) == "table" then
+                local kvs = None
+                for k,v in pairs(a) do
+                    if kvs then
+                        kvs = string.format("%s, %s=%s", kvs, k, tostring(v))
+                    else
+                        kvs = string.format("%s=%s", k, tostring(v))
+                    end
+                end
+                args[i] = kvs or "-"
+            else
+                args[i] = a
+            end
+        end
+
+        print(string.format("%s (%d): %s", func, line, string.format(fmt, unpack(args))))
     end
 end
 
@@ -87,13 +105,14 @@ local function create_camera_controls(props, camera_id, settings)
     end
 end
 
-local function do_cam_action_start(camera_id, camera_action, action_arg)
+local function do_cam_action_start(camera_id, camera_action, action_args)
     local cam_prop_prefix = string.format("cam_%d_", camera_id)
     local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
     local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
     local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
+    action_args = action_args or {}
 
-    log("Start cam %d @%s action %d (arg %d)", camera_id, camera_address, camera_action, action_arg or 0)
+    log("Start cam %d @%s action %d (args %s)", camera_id, camera_address, camera_action, action_args)
     local connection = plugin_data.connections[camera_id]
 
     -- Force close connection before sending On-command to prevent usage of a dead connection
@@ -125,8 +144,8 @@ local function do_cam_action_start(camera_id, camera_action, action_arg)
             plugin_data.connections[camera_id] = nil
         elseif camera_action == actions.Camera_On then
             connection.Cam_Power(true)
-        elseif camera_action == actions.Preset_Recal then
-            connection.Cam_Preset_Recall(action_arg)
+        elseif camera_action == actions.Preset_Recal and action_args.preset then
+            connection.Cam_Preset_Recall(action_args.preset)
         elseif camera_action == actions.Pan_Left then
             connection.Cam_PanTilt(Visca.PanTilt_directions.left, 3)
         elseif camera_action == actions.Pan_Right then
@@ -143,13 +162,14 @@ local function do_cam_action_start(camera_id, camera_action, action_arg)
     end
 end
 
-local function do_cam_action_stop(camera_id, camera_action, action_arg)
+local function do_cam_action_stop(camera_id, camera_action, action_args)
     local cam_prop_prefix = string.format("cam_%d_", camera_id)
     local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
     local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
     local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
+    action_args = action_args or {}
 
-    log("Stop cam %d @%s action %d (arg %d)", camera_id, camera_address, camera_action, action_arg or 0)
+    log("Stop cam %d @%s action %d (arg %s)", camera_id, camera_address, camera_action, action_args)
     local connection = plugin_data.connections[camera_id]
     if connection == nil then
         local connection_error = ""
@@ -183,9 +203,9 @@ end
 
 local function cb_camera_hotkey(pressed, hotkey_data)
     if pressed then
-        do_cam_action_start(hotkey_data.camera_id, hotkey_data.action)
+        do_cam_action_start(hotkey_data.camera_id, hotkey_data.action, hotkey_data.action_args)
     else
-        do_cam_action_stop(hotkey_data.camera_id, hotkey_data.action)
+        do_cam_action_stop(hotkey_data.camera_id, hotkey_data.action, hotkey_data.action_args)
     end
 end
 
@@ -220,6 +240,16 @@ function script_load(settings)
         { name = "tilt_down", descr = "Tilt Down", action = actions.Tilt_Down},
         { name = "zoom_in", descr = "Zoom In", action = actions.Zoom_In},
         { name = "zoom_out", descr = "Zoom Out", action = actions.Zoom_Out },
+        { name = "preset_0", descr = "Preset 0", action = actions.Preset_Recal, action_args = { preset = 0 } },
+        { name = "preset_1", descr = "Preset 1", action = actions.Preset_Recal, action_args = { preset = 1 } },
+        { name = "preset_2", descr = "Preset 2", action = actions.Preset_Recal, action_args = { preset = 2 } },
+        { name = "preset_3", descr = "Preset 3", action = actions.Preset_Recal, action_args = { preset = 3 } },
+        { name = "preset_4", descr = "Preset 4", action = actions.Preset_Recal, action_args = { preset = 4 } },
+        { name = "preset_5", descr = "Preset 5", action = actions.Preset_Recal, action_args = { preset = 5 } },
+        { name = "preset_6", descr = "Preset 6", action = actions.Preset_Recal, action_args = { preset = 6 } },
+        { name = "preset_7", descr = "Preset 7", action = actions.Preset_Recal, action_args = { preset = 7 } },
+        { name = "preset_8", descr = "Preset 8", action = actions.Preset_Recal, action_args = { preset = 8 } },
+        { name = "preset_9", descr = "Preset 9", action = actions.Preset_Recal, action_args = { preset = 9 } },
     }
 
     local num_cameras = obs.obs_data_get_int(settings, "num_cameras")
@@ -233,7 +263,7 @@ function script_load(settings)
         for _,v in pairs(hotkey_actions) do
             local hotkey_name = cam_prop_prefix .. v.name
             local hotkey_id = obs.obs_hotkey_register_frontend(hotkey_name, v.descr .. " " .. cam_name, function(pressed)
-                    cb_camera_hotkey(pressed, { name = hotkey_name, camera_id = camera_id, action = v.action })
+                    cb_camera_hotkey(pressed, { name = hotkey_name, camera_id = camera_id, action = v.action, action_args = v.action_args })
                 end)
 
             local a = obs.obs_data_get_array(settings, hotkey_name .. "_hotkey")
@@ -459,7 +489,7 @@ local function do_cam_scene_action(settings)
     local cam_prop_prefix = string.format("cam_%d_", camera_id)
     local preset_id = obs.obs_data_get_int(settings, "scene_".. cam_prop_prefix .. "preset")
 
-    do_cam_action_start(camera_id, scene_action, preset_id)
+    do_cam_action_start(camera_id, scene_action, { preset = preset_id })
 end
 
 function cb_camera_changed(props, property, data)
