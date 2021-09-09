@@ -41,7 +41,7 @@ local action_active = {
 
 
 local function log(fmt, ...)
-    if plugin_data.debug then
+    if plugin_data.debug or obs.obs_data_get_bool(plugin_settings, "debug_logging") then
         local info = debug.getinfo(2, "nl")
         local func = info.name or "?"
         local line = info.currentline
@@ -263,8 +263,9 @@ function script_properties()
     for camera_id = 1, num_cameras do
         create_camera_controls(props, camera_id, plugin_settings)
     end
-    
     obs.obs_property_set_modified_callback(cams, prop_set_attrs_values)
+
+    obs.obs_properties_add_bool(props, "debug_logging", "Enable verbose logging (debug)")
 
     return props
 end
