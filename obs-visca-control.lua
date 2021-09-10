@@ -25,12 +25,9 @@ local actions = {
     Camera_Off = 0,
     Camera_On  = 1,
     Preset_Recal = 2,
-    Pan_Left = 3,
-    Pan_Right = 4,
-    Tilt_Up = 5,
-    Tilt_Down = 6,
-    Zoom_In = 7,
-    Zoom_Out = 8
+    PanTilt = 3,
+    Zoom_In = 4,
+    Zoom_Out = 5
 }
 
 local action_active = {
@@ -146,14 +143,8 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
             connection.Cam_Power(true)
         elseif camera_action == actions.Preset_Recal and action_args.preset then
             connection.Cam_Preset_Recall(action_args.preset)
-        elseif camera_action == actions.Pan_Left then
-            connection.Cam_PanTilt(Visca.PanTilt_directions.left, 3)
-        elseif camera_action == actions.Pan_Right then
-            connection.Cam_PanTilt(Visca.PanTilt_directions.right, 3)
-        elseif camera_action == actions.Tilt_Up then
-            connection.Cam_PanTilt(Visca.PanTilt_directions.up, 3)
-        elseif camera_action == actions.Tilt_Down then
-            connection.Cam_PanTilt(Visca.PanTilt_directions.down, 3)
+        elseif camera_action == actions.PanTilt then
+            connection.Cam_PanTilt(action_args.direction or Visca.PanTilt_directions.stop, action_args.speed or 3)
         elseif camera_action == actions.Zoom_In then
             connection.Cam_Zoom_Tele()
         elseif camera_action == actions.Zoom_Out then
@@ -185,13 +176,7 @@ local function do_cam_action_stop(camera_id, camera_action, action_args)
     end
 
     if connection then
-        if camera_action == actions.Pan_Left then
-            connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
-        elseif camera_action == actions.Pan_Right then
-            connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
-        elseif camera_action == actions.Tilt_Up then
-            connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
-        elseif camera_action == actions.Tilt_Down then
+        if camera_action == actions.PanTilt then
             connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
         elseif camera_action == actions.Zoom_In then
             connection.Cam_Zoom_Stop()
@@ -234,10 +219,10 @@ end
 
 function script_load(settings)
     local hotkey_actions = {
-        { name = "pan_left", descr = "Pan Left", action = actions.Pan_Left },
-        { name = "pan_right", descr = "Pan Right", action = actions.Pan_Right},
-        { name = "tilt_up", descr = "Tilt Up", action = actions.Tilt_Up},
-        { name = "tilt_down", descr = "Tilt Down", action = actions.Tilt_Down},
+        { name = "pan_left", descr = "Pan Left", action = actions.PanTilt, action_args = { direction = Visca.PanTilt_directions.left } },
+        { name = "pan_right", descr = "Pan Right", action = actions.PanTilt, action_args = { direction = Visca.PanTilt_directions.right } },
+        { name = "tilt_up", descr = "Tilt Up", action = actions.PanTilt, action_args = { direction = Visca.PanTilt_directions.up } },
+        { name = "tilt_down", descr = "Tilt Down", action = actions.PanTilt, action_args = { direction = Visca.PanTilt_directions.down} },
         { name = "zoom_in", descr = "Zoom In", action = actions.Zoom_In},
         { name = "zoom_out", descr = "Zoom Out", action = actions.Zoom_Out },
         { name = "preset_0", descr = "Preset 0", action = actions.Preset_Recal, action_args = { preset = 0 } },
