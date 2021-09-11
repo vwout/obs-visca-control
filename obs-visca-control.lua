@@ -412,9 +412,9 @@ plugin_def.get_properties = function(data)
     local props = obs.obs_properties_create()
 
     local num_cameras = obs.obs_data_get_int(plugin_settings, "num_cameras")
-    local prop_camera = obs.obs_properties_add_list(props, "scene_camera", "Camera:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+    local prop_camera = obs.obs_properties_add_list(props, "scene_camera", "Camera", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
 
-    local prop_action = obs.obs_properties_add_list(props, "scene_action", "Action:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+    local prop_action = obs.obs_properties_add_list(props, "scene_action", "Action", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
     obs.obs_property_list_add_int(prop_action, "Camera Off", actions.Camera_Off)
     obs.obs_property_list_add_int(prop_action, "Camera On", actions.Camera_On)
     obs.obs_property_list_add_int(prop_action, "Preset Recall", actions.Preset_Recal)
@@ -463,14 +463,14 @@ plugin_def.get_properties = function(data)
     end
     table.sort(direction_names)
 
-    local prop_pantilt_direction = obs.obs_properties_add_list(props, "scene_pantilt_direction", "Animation Direction:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+    local prop_pantilt_direction = obs.obs_properties_add_list(props, "scene_pantilt_direction", "Animation Direction", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
     obs.obs_property_list_add_int(prop_pantilt_direction, "None", 0)
     for _, direction_name in ipairs(direction_names) do
         obs.obs_property_list_add_int(prop_pantilt_direction, direction_name:gsub("^%l", string.upper), Visca.PanTilt_directions[direction_name])
     end
-    local prop_animation_speed = obs.obs_properties_add_float_slider(props, "scene_pantilt_speed", "Animation Speed:", Visca.limits.PAN_MIN_SPEED, Visca.limits.PAN_MAX_SPEED, 0.1)
+    local prop_animation_speed = obs.obs_properties_add_float_slider(props, "scene_pantilt_speed", "Animation Speed", Visca.limits.PAN_MIN_SPEED, Visca.limits.PAN_MAX_SPEED, 0.1)
 
-    local prop_active = obs.obs_properties_add_list(props, "scene_active", "Action Active:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+    local prop_active = obs.obs_properties_add_list(props, "scene_active", "Action Active", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
     obs.obs_property_list_add_int(prop_active, "On Program", action_active.Program)
     obs.obs_property_list_add_int(prop_active, "On Preview", action_active.Preview)
     obs.obs_property_list_add_int(prop_active, "Always", action_active.Always)
