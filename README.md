@@ -56,10 +56,12 @@ Valid examples are `0: Home`, `5 = Pastor` or `Stage - 6`
 To control a camera, add a `Visca Camera Control` source to a scene.
 ![Source configuration](images/docs/scene_settings.png)
 
-In the source settings, select the camera, action and optionally the preset that the camera should switch to.
+In the source settings, select the camera and the action that should be executed.
+When the action 'Preset Recall' is chosen, the preset also needs to be chosen. These presets needs to be configured per camera in the script settings, see [configuration](#configuration).
+For the action Pan/Tilt, the direction and speed also needs to be selected. Note that this action does not use a specific starting position, the pan action starts from the camera position that is actual when the scene becomes active.
 The camera action is executed when either the scene in which the source is used becomes active in preview, in program, or both, depending on the selected entry in the selection.
 
-The actions Zoom and Pan/Tilt are not available as scene action. To use these actions, configure a hotkey in the global OBS setttings. Presets 0-9 can also be recalled via a hotkey.
+The action Zoom is not available as scene action. To use this actions, configure a hotkey in the global OBS setttings. Presets 0-9 and Pan/Tilt actions up/down/left/right can also be recalled via a hotkey.
 ![Hotkey configuration](images/docs/hotkey_settings.png)
 
 Pressing the configured key combination will perform an immediate zoom, pan or tilt step at the camera.
