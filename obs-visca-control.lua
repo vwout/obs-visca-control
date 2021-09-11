@@ -456,11 +456,17 @@ plugin_def.get_properties = function (data)
         
         obs.obs_data_array_release(presets)
     end
-    
+
+    local direction_names = {}
+    for direction_name in pairs(Visca.PanTilt_directions) do
+        table.insert(direction_names, direction_name)
+    end
+    table.sort(direction_names)
+
     local prop_pantilt_direction = obs.obs_properties_add_list(props, "scene_pantilt_direction", "Animation Direction:", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
     obs.obs_property_list_add_int(prop_pantilt_direction, "None", 0)
-    for type, number in pairs(Visca.PanTilt_directions) do
-        obs.obs_property_list_add_int(prop_pantilt_direction, type, number)
+    for _, direction_name in ipairs(direction_names) do
+        obs.obs_property_list_add_int(prop_pantilt_direction, direction_name:gsub("^%l", string.upper), Visca.PanTilt_directions[direction_name])
     end
     local prop_animation_speed = obs.obs_properties_add_float_slider(props, "scene_pantilt_speed", "Animation Speed:", Visca.limits.PAN_MIN_SPEED, Visca.limits.PAN_MAX_SPEED, 0.1)
     
