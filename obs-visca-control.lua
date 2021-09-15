@@ -102,22 +102,18 @@ local function create_camera_controls(props, camera_id, settings)
     end
 end
 
-local function do_cam_action_start(camera_id, camera_action, action_args)
-    local cam_prop_prefix = string.format("cam_%d_", camera_id)
-    local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
-    local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
-    local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
-    action_args = action_args or {}
-
-    log("Start cam %d @%s action %d (args %s)", camera_id, camera_address, camera_action, action_args)
+local function close_visca_connection(camera_id)
     local connection = plugin_data.connections[camera_id]
 
-    -- Force close connection before sending On-command to prevent usage of a dead connection
-    if connection ~= nil and camera_action == actions.Camera_On then
+    if connection ~= nil then
         connection.close()
         connection = nil
         plugin_data.connections[camera_id] = nil
     end
+end
+
+local function open_visca_connection(camera_id, camera_address, camera_port, camera_mode)
+    local connection = plugin_data.connections[camera_id]
 
     if connection == nil then
         local connection_error = ""
@@ -131,6 +127,25 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
             log(connection_error)
         end
     end
+
+    return connection
+end
+
+local function do_cam_action_start(camera_id, camera_action, action_args)
+    local cam_prop_prefix = string.format("cam_%d_", camera_id)
+    local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
+    local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
+    local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
+    action_args = action_args or {}
+
+    log("Start cam %d @%s action %d (args %s)", camera_id, camera_address, camera_action, action_args)
+
+    -- Force close connection before sending On-command to prevent usage of a dead connection
+    if camera_action == actions.Camera_On then
+        close_visca_connection(camera_id)
+    end
+
+    local connection = open_visca_connection(camera_id, camera_address, camera_port, camera_mode)
 
     if connection then
         if camera_action == actions.Camera_Off then
@@ -161,19 +176,7 @@ local function do_cam_action_stop(camera_id, camera_action, action_args)
     action_args = action_args or {}
 
     log("Stop cam %d @%s action %d (arg %s)", camera_id, camera_address, camera_action, action_args)
-    local connection = plugin_data.connections[camera_id]
-    if connection == nil then
-        local connection_error = ""
-        connection, connection_error = Visca.connect(camera_address, camera_port)
-        if connection then
-            if camera_mode then
-                connection.set_mode(camera_mode)
-            end
-            plugin_data.connections[camera_id] = connection
-        else
-            log(connection_error)
-        end
-    end
+    local connection = open_visca_connection(camera_id, camera_address, camera_port, camera_mode)
 
     if connection then
         if camera_action == actions.PanTilt then
