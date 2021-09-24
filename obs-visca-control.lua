@@ -159,11 +159,11 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
         elseif camera_action == actions.Preset_Recal and action_args.preset then
             connection.Cam_Preset_Recall(action_args.preset)
         elseif camera_action == actions.PanTilt then
-            connection.Cam_PanTilt(action_args.direction or Visca.PanTilt_directions.stop, action_args.speed or 3)
+            connection.Cam_PanTilt(action_args.direction or Visca.PanTilt_directions.stop, action_args.speed or 0x03, action_args.speed or 0x03)
         elseif camera_action == actions.Zoom_In then
-            connection.Cam_Zoom_Tele()
+            connection.Cam_Zoom_Tele(action_args.speed)
         elseif camera_action == actions.Zoom_Out then
-            connection.Cam_Zoom_Wide()
+            connection.Cam_Zoom_Wide(action_args.speed)
         end
     end
 end
@@ -422,6 +422,8 @@ plugin_def.get_properties = function(data)
     obs.obs_property_list_add_int(prop_action, "Camera On", actions.Camera_On)
     obs.obs_property_list_add_int(prop_action, "Preset Recall", actions.Preset_Recal)
     obs.obs_property_list_add_int(prop_action, "Pan/Tilt", actions.PanTilt)
+    obs.obs_property_list_add_int(prop_action, "Zoom In", actions.Zoom_In)
+    obs.obs_property_list_add_int(prop_action, "Zoom Out", actions.Zoom_Out)
 
     for camera_id = 1, num_cameras do
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
@@ -466,12 +468,12 @@ plugin_def.get_properties = function(data)
     end
     table.sort(direction_names)
 
-    local prop_pantilt_direction = obs.obs_properties_add_list(props, "scene_pantilt_direction", "Animation Direction", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+    local prop_pantilt_direction = obs.obs_properties_add_list(props, "scene_direction", "Animation Direction", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
     obs.obs_property_list_add_int(prop_pantilt_direction, "None", 0)
     for _, direction_name in ipairs(direction_names) do
         obs.obs_property_list_add_int(prop_pantilt_direction, direction_name:gsub("^%l", string.upper), Visca.PanTilt_directions[direction_name])
     end
-    local prop_animation_speed = obs.obs_properties_add_float_slider(props, "scene_pantilt_speed", "Animation Speed", Visca.limits.PAN_MIN_SPEED, Visca.limits.PAN_MAX_SPEED, 0.1)
+    local prop_animation_speed = obs.obs_properties_add_int_slider(props, "scene_speed", "Animation Speed", Visca.limits.PAN_MIN_SPEED, Visca.limits.PAN_MAX_SPEED, 1)
 
     local prop_active = obs.obs_properties_add_list(props, "scene_active", "Action Active", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
     obs.obs_property_list_add_int(prop_active, "On Program", action_active.Program)
@@ -520,8 +522,9 @@ function cb_camera_action_changed(props, property, data)
         changed = set_property_visibility(props, string.format("scene_cam_%d_preset", camera_id), visible) or changed
     end
 
-    changed = set_property_visibility(props, "scene_pantilt_direction", scene_action == actions.PanTilt) or changed
-    changed = set_property_visibility(props, "scene_pantilt_speed", scene_action == actions.PanTilt) or changed
+    changed = set_property_visibility(props, "scene_direction", scene_action == actions.PanTilt) or changed
+    local need_speed = (scene_action == actions.PanTilt) or (scene_action == actions.Zoom_In) or (scene_action == actions.Zoom_Out)
+    changed = set_property_visibility(props, "scene_speed", need_speed) or changed
 
     return changed
 end
@@ -574,8 +577,8 @@ local function do_cam_scene_action(settings, start)
 
     local action_args = {
         preset = obs.obs_data_get_int(settings, "scene_" .. cam_prop_prefix .. "preset"),
-        direction = obs.obs_data_get_int(settings, "scene_pantilt_direction"),
-        speed = obs.obs_data_get_double(settings, "scene_pantilt_speed")
+        direction = obs.obs_data_get_int(settings, "scene_direction"),
+        speed = obs.obs_data_get_double(settings, "scene_speed")
     }
     local active = obs.obs_data_get_int(settings, "scene_active")
 

@@ -14,7 +14,7 @@ Besides recalling a pre-made preset, this plugin supports a few more control ope
 
 This plugin requires the camera to support Visca over IP via UDP.
 It follows the specification as designed by Sony and also supports the PTZOptics variant of Visca.
-This plugin has been tested with Everet cameras and is also reported to work with Avonic, BZB Gear, PTZOptics and Zowietek cameras.
+This plugin has been tested with Everet cameras and is also reported to work with other brands like Avonic, BZB Gear, PTZOptics and Zowietek cameras.
 
 ## Installation
 The plugin is a script plugin and utilizes the Lua scripting capabilities of OBS.
@@ -61,7 +61,7 @@ When the action 'Preset Recall' is chosen, the preset also needs to be chosen. T
 For the action Pan/Tilt, the direction and speed also needs to be selected. Note that this action does not use a specific starting position, the pan action starts from the camera position that is actual when the scene becomes active.
 The camera action is executed when either the scene in which the source is used becomes active in preview, in program, or both, depending on the selected entry in the selection.
 
-The action Zoom is not available as scene action. To use this actions, configure a hotkey in the global OBS setttings. Presets 0-9 and Pan/Tilt actions up/down/left/right can also be recalled via a hotkey.
+Presets 0-9, Pan/Tilt actions up/down/left/right and Zoom in/out can also be recalled via a hotkey. To use any of these actions, configure a hotkey in the global OBS setttings.
 ![Hotkey configuration](images/docs/hotkey_settings.png)
 
 Pressing the configured key combination will perform an immediate zoom, pan or tilt step at the camera.
