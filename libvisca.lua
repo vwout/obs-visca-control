@@ -63,11 +63,19 @@ Visca.PanTilt_directions = {
     stop      = 0x0303,
 }
 
+Visca.Zoom_subcommand = {
+    stop = 0x00,
+    tele_standard = 0x02,
+    wide_standard = 0x03,
+    tele_variable = 0x20,
+    wide_variable = 0x30,
+}
+
 Visca.limits = {
     PAN_MIN_SPEED  = 0x01,
     PAN_MAX_SPEED  = 0x18,
-    TILT_MIN_SPEED = 0x01,
-    TILT_MAX_SPEED = 0x18,
+    TILT_MIN_SPEED = 0x00,
+    TILT_MAX_SPEED = 0x07,
     ZOOM_MIN_VALUE = 0x0000,
     ZOOM_MAX_VALUE = 0x4000,
 }
@@ -339,7 +347,7 @@ function Visca.connect(address, port)
                 Visca.packet_consts.command,
                 Visca.categories.camera1,
                 Visca.commands.zoom,
-                0x00,
+                Visca.Zoom_subcommand.stop,
                 Visca.packet_consts.terminator
             }
 
@@ -347,6 +355,10 @@ function Visca.connect(address, port)
     end
 
     function connection.Cam_Zoom_Tele(speed)
+        if speed then
+            speed = math.min(math.max(speed or 0x02, Visca.limits.TILT_MIN_SPEED), Visca.limits.TILT_MAX_SPEED)
+        end
+
         local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
@@ -354,7 +366,7 @@ function Visca.connect(address, port)
                 Visca.packet_consts.command,
                 Visca.categories.camera1,
                 Visca.commands.zoom,
-                speed and bit.bor(0x20, bit.band(speed, 0x07)) or 0x02,
+                speed and bit.bor(Visca.Zoom_subcommand.tele_variable, bit.band(speed, 0x07)) or Visca.Zoom_subcommand.tele_standard,
                 Visca.packet_consts.terminator
             }
 
@@ -362,6 +374,10 @@ function Visca.connect(address, port)
     end
 
     function connection.Cam_Zoom_Wide(speed)
+        if speed then
+            speed = math.min(math.max(speed or 0x02, Visca.limits.TILT_MIN_SPEED), Visca.limits.TILT_MAX_SPEED)
+        end
+
         local msg = Visca.Message()
         msg.command = Visca.payload_types.command
         msg.payload = {
@@ -369,7 +385,7 @@ function Visca.connect(address, port)
                 Visca.packet_consts.command,
                 Visca.categories.camera1,
                 Visca.commands.zoom,
-                speed and bit.bor(0x30, bit.band(speed, 0x07)) or 0x03,
+                speed and bit.bor(Visca.Zoom_subcommand.wide_variable, bit.band(speed, 0x07)) or Visca.Zoom_subcommand.wide_standard,
                 Visca.packet_consts.terminator
             }
 
