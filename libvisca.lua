@@ -74,8 +74,10 @@ Visca.Zoom_subcommand = {
 Visca.limits = {
     PAN_MIN_SPEED  = 0x01,
     PAN_MAX_SPEED  = 0x18,
-    TILT_MIN_SPEED = 0x00,
-    TILT_MAX_SPEED = 0x07,
+    TILT_MIN_SPEED = 0x01,
+    TILT_MAX_SPEED = 0x18,
+    ZOOM_MIN_SPEED = 0x00,
+    ZOOM_MAX_SPEED = 0x07,
     ZOOM_MIN_VALUE = 0x0000,
     ZOOM_MAX_VALUE = 0x4000,
 }
@@ -356,7 +358,7 @@ function Visca.connect(address, port)
 
     function connection.Cam_Zoom_Tele(speed)
         if speed then
-            speed = math.min(math.max(speed or 0x02, Visca.limits.TILT_MIN_SPEED), Visca.limits.TILT_MAX_SPEED)
+            speed = math.min(math.max(speed or 0x02, Visca.limits.ZOOM_MIN_SPEED), Visca.limits.ZOOM_MAX_SPEED)
         end
 
         local msg = Visca.Message()
@@ -375,7 +377,7 @@ function Visca.connect(address, port)
 
     function connection.Cam_Zoom_Wide(speed)
         if speed then
-            speed = math.min(math.max(speed or 0x02, Visca.limits.TILT_MIN_SPEED), Visca.limits.TILT_MAX_SPEED)
+            speed = math.min(math.max(speed or 0x02, Visca.limits.ZOOM_MIN_SPEED), Visca.limits.ZOOM_MAX_SPEED)
         end
 
         local msg = Visca.Message()
