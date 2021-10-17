@@ -1,4 +1,4 @@
-bit = require("bit")
+local bit = require("bit")
 local socket = require("ljsocket")
 
 local Visca = {}
@@ -23,12 +23,12 @@ Visca.payload_types = {
     control_reply   = 0x0201   -- Control reply, Stores the reply for the control command.
 }
 Visca.payload_type_names = {
-	[Visca.payload_types.visca_command]   = "VISCA Command",
-	[Visca.payload_types.visca_inquiry]   = "VISCA Inquiry",
-	[Visca.payload_types.visca_reply]     = "VISCA Reply",
-	[Visca.payload_types.visca_setting]   = "VISCA Device Setting Command",
-	[Visca.payload_types.control_command] = "Control Comand",
-	[Visca.payload_types.control_reply]   = "Control Reply"
+    [Visca.payload_types.visca_command]   = "VISCA Command",
+    [Visca.payload_types.visca_inquiry]   = "VISCA Inquiry",
+    [Visca.payload_types.visca_reply]     = "VISCA Reply",
+    [Visca.payload_types.visca_setting]   = "VISCA Device Setting Command",
+    [Visca.payload_types.control_command] = "Control Comand",
+    [Visca.payload_types.control_reply]   = "Control Reply"
 }
 
 Visca.packet_consts = {
@@ -38,13 +38,13 @@ Visca.packet_consts = {
     terminator    = 0xFF
 }
 
-Visca.error_names = {
-	[0x01] = "Message length error",
-	[0x02] = "Syntax error",
-	[0x03] = "Command buffer full",
-	[0x04] = "Command canceled",
-	[0x05] = "No socket",              -- To be cancelled
-	[0x41] = "Command not executable",
+Visca.error_type_names = {
+    [0x01] = "Message length error",
+    [0x02] = "Syntax error",
+    [0x03] = "Command buffer full",
+    [0x04] = "Command canceled",
+    [0x05] = "No socket",              -- To be cancelled
+    [0x41] = "Command not executable",
 }
 
 Visca.categories = {
@@ -57,27 +57,23 @@ Visca.categories = {
     camera_ext   = 0x07
 }
 Visca.category_names = {
-	[Visca.categories.interface]    = "Interface",
-	[Visca.categories.camera]       = "Exposure/Focus/Camera",
-	[Visca.categories.exposure]     = "Exposure/Focus/Camera",
-	[Visca.categories.focus]        = "Exposure/Focus/Camera",
-	[Visca.categories.exposure_ext] = "Exposure",
-	[Visca.categories.pan_tilter]   = "Pan/Tilt",
-	[Visca.categories.camera_ext]   = "Exposure/Camera",
-}
-
-Visca.command_sets = {
-    power      = 0x00,
-    preset     = 0x3F,
+    [Visca.categories.interface]    = "Interface",
+    [Visca.categories.camera]       = "Exposure/Focus/Camera",
+    [Visca.categories.exposure]     = "Exposure/Focus/Camera",
+    [Visca.categories.focus]        = "Exposure/Focus/Camera",
+    [Visca.categories.exposure_ext] = "Exposure",
+    [Visca.categories.pan_tilter]   = "Pan/Tilt",
+    [Visca.categories.camera_ext]   = "Exposure/Camera",
 }
 
 Visca.commands = {
-    preset_recall           = 0x02,
+    power                   = 0x00,
     pantilt_drive           = 0x01,
     pantilt_home            = 0x04,
     pantilt_reset           = 0x05,
     zoom                    = 0x07,
     exposure_gain           = 0x0C,
+    preset                  = 0x3F,
     zoom_to                 = 0x47,
     focus                   = 0x48,
     exposure_auto           = 0x49,
@@ -86,18 +82,35 @@ Visca.commands = {
     exposure_gain_direct    = 0x4B,
 }
 Visca.command_names = {
-	[Visca.commands.preset_recall]           = "Absolute Position (Preset)",
-	[Visca.commands.pantilt_drive]           = "Pan/Tilt",
-	[Visca.commands.pantilt_home]            = "Pan/Tilt (Home)",
-	[Visca.commands.pantilt_reset]           = "Pan/Tilt (Reset)",
-	[Visca.commands.zoom]                    = "Zoom",
-	[Visca.commands.exposure_gain]           = "Gain",
-	[Visca.commands.zoom_to]                 = "Zoom (to)",
-	[Visca.commands.focus]                   = "Focus",
-	[Visca.commands.exposure_auto]           = "Auto Exposure",
-	[Visca.commands.exposure_iris_direct]    = "Iris Absolute",
-	[Visca.commands.exposure_shutter_direct] = "Shutter Absolute",
-	[Visca.commands.exposure_gain_direct]    = "Gain Absolute",
+    [Visca.commands.power]                   = "Power",
+    [Visca.commands.pantilt_drive]           = "Pan/Tilt",
+    [Visca.commands.pantilt_home]            = "Pan/Tilt (Home)",
+    [Visca.commands.pantilt_reset]           = "Pan/Tilt (Reset)",
+    [Visca.commands.zoom]                    = "Zoom",
+    [Visca.commands.exposure_gain]           = "Gain",
+    [Visca.commands.preset]                  = "Preset",
+    [Visca.commands.zoom_to]                 = "Zoom (to)",
+    [Visca.commands.focus]                   = "Focus",
+    [Visca.commands.exposure_auto]           = "Auto Exposure",
+    [Visca.commands.exposure_iris_direct]    = "Iris Absolute",
+    [Visca.commands.exposure_shutter_direct] = "Shutter Absolute",
+    [Visca.commands.exposure_gain_direct]    = "Gain Absolute",
+}
+
+Visca.command_arguments = {
+    preset_recall           = 0x02,
+    power_on                = 0x02,
+    power_standby           = 0x03,
+}
+
+local function ca_key(command, argument)
+    return bit.lshift(command, 8) + argument
+end
+
+Visca.command_argument_names = {
+    [ca_key(Visca.commands.preset, Visca.command_arguments.preset_recall)] = "Absolute Position (Preset)",
+    [ca_key(Visca.commands.power,  Visca.command_arguments.power_on)]      = "On",
+    [ca_key(Visca.commands.power,  Visca.command_arguments.power_on)]      = "Off",
 }
 
 Visca.PanTilt_directions = {
@@ -145,7 +158,8 @@ function Visca.Message()
         payload_type = 0x0000,
         payload_size = 0x0000,
         seq_nr       = 0x00000000,
-        payload      = {}
+        payload      = {},
+        message      = {},
     }
 
     function self.lsb(v)
@@ -156,6 +170,94 @@ function Visca.Message()
       return bit.rshift(v, 8)
     end
 
+    local function message_payload_command(command_inquiry, category, command, arguments)
+        local self = {
+            command_inquiry = command_inquiry or 0x00,
+            category        = category or 0x00,
+            command         = command or 0x00,
+            arguments       = arguments or {}
+        }
+        
+        function self.from_payload(payload)
+            self.command_inquiry = payload[2]
+            self.category        = payload[3] or 0
+            self.command         = payload[4] or 0
+            
+            for i = 5, #payload do
+                if not ((i == #payload) and (payload[i] == Visca.packet_consts.terminator)) then
+                    table.insert(self.arguments, payload[i])
+                end
+            end
+
+            return self
+        end
+        
+        function self.is_command()
+            return self.command_inquiry == 0x01
+        end
+        
+        function self.is_inquiry()
+            return self.command_inquiry == 0x09
+        end
+                
+        function self.as_string()
+            local args = '-'
+            if #self.arguments then
+                local descr = Visca.command_argument_names[ca_key(self.command, self.arguments[1])]
+                
+                local str_a = {}
+                for i = descr and 2 or 1, #self.arguments do
+                    table.insert(str_a, string.format('%02X', self.arguments[i]))
+                end
+
+                args = (descr or 'arguments') .. ' ' .. table.concat(str_a, ' ')  
+            end
+
+            if self.is_command() then
+                return string.format('Command on %s: %s, %s', Visca.category_names[self.category], Visca.command_names[self.command] or 'Unknown', args)
+            elseif self.is_inquiry() then
+                return string.format('Inquiry on %s: %s, %s', Visca.category_names[self.category], Visca.command_names[self.command] or 'Unknown', args)
+            else
+                return 'Unknown'
+            end
+        end
+        
+        return self
+    end
+
+    local function message_payload_reply()
+        local self = {
+            msg_type   = 0x00,
+            error_type = 0x00
+        }
+        
+        function self.from_payload(payload)
+            self.msg_type   = payload[2]
+            self.error_type = payload[3] or 0
+            return self
+        end
+        
+        function self.is_ack()
+            return bit.band(self.msg_type, 0xF0) == 0x40
+        end
+        
+        function self.is_completion()
+            return bit.band(self.msg_type, 0xF0) == 0x50
+        end
+
+        function self.as_string()
+            if self.is_ack() then
+                return 'Acknowledge'
+            elseif self.is_completion() then
+                return 'Completion'
+            else
+                return string.format('Error on socket %d: %s', bit.band(self.msg_type, 0x0F), Visca.error_type_names[self.error_type] or 'Unknown')
+            end
+        end
+        
+        return self
+    end
+    
     function self.from_data(data)
         local message_length = #(data or '')
         if message_length > 1 then
@@ -176,6 +278,14 @@ function Visca.Message()
                 for b = 1, message_length do
                     table.insert(self.payload, string.byte(data, b))
                 end
+            end
+            
+            if (bit.band(self.payload[1], 0xF0) == 0x80) then
+                -- command or inquiry
+                self.message.command = message_payload_command().from_payload(self.payload)
+            elseif (bit.band(self.payload[1], 0xF0) == 0x90) then
+                -- reply
+                self.message.reply = message_payload_reply().from_payload(self.payload)
             end
         end
 
@@ -219,10 +329,35 @@ function Visca.Message()
         
         local str_a = {}
         for b = 1, bin_len do
-            table.insert(str_a, string.format(' %02X', string.byte(bin_str, b)))
+            table.insert(str_a, string.format('%02X', string.byte(bin_str, b)))
         end
 
-        return table.concat(str_a)
+        return table.concat(str_a, ' ')
+    end
+
+    function self.dump(name, prefix, mode)
+        if name then
+          print('\n' .. name)
+        end
+        prefix = prefix or '- '
+        
+        print(string.format('%sMessage:         %s', prefix or '', self.as_string(mode)))
+        print(string.format("%sPayload type:    %s (0x%02X%02X)", prefix or '', Visca.payload_type_names[self.payload_type] or 'Unkown', 
+                                                                                math.floor(self.payload_type/256), self.payload_type % 256))
+        print(string.format('%sPayload length:  %d', prefix or '', self.payload_size))
+        print(string.format('%sSequence number: %d', prefix or '', self.seq_nr))
+        
+        if self.message.command then
+            print(string.format('%sPayload:         Command', prefix or ''))
+            print(string.format('%s                 %s', prefix or '', self.message.command.as_string()))
+        elseif self.message.reply then
+            print(string.format('%sPayload:         Reply', prefix or ''))
+            print(string.format('%s                 %s', prefix or '', self.message.reply.as_string()))
+        else
+            print(string.format('%sPayload:         %s', prefix or '', self.payload))
+        end
+        
+        return self
     end
 
     return self
@@ -245,7 +380,9 @@ function Visca.connect(address, port)
         if success then
             connection.sock = sock
         end
-    else
+    end
+
+    if not connection.sock then
         error = string.format("Unable to connect to %s: %s", address, sock_err)
     end
 
@@ -309,12 +446,12 @@ function Visca.connect(address, port)
                 Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1,  0x0F),
                 Visca.packet_consts.command,
                 Visca.categories.camera,
-                Visca.command_sets.power,
-                on and 0x02 or 0x03,  -- On = 0x02, Off = 0x03
+                Visca.commands.power,
+                on and Visca.command_arguments.power_on or Visca.command_arguments.power_off,
                 Visca.packet_consts.terminator
             }
 
-        connection.send(msg)
+        return connection.send(msg)
     end
     
     function connection.Cam_Preset_Recall(preset)
@@ -324,13 +461,13 @@ function Visca.connect(address, port)
                 Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
                 Visca.packet_consts.command,
                 Visca.categories.camera,
-                Visca.command_sets.preset,
-                Visca.commands.preset_recall,
+                Visca.commands.preset,
+                Visca.command_arguments.preset_recall,
                 bit.band(preset, 0x7F),  -- Preset Number(=0 to 127)
                 Visca.packet_consts.terminator
             }
         
-        connection.send(msg)
+        return connection.send(msg)
     end
     
     function connection.Cam_PanTilt(direction, pan_speed, tilt_speed)
