@@ -365,6 +365,9 @@ end
 
 function Visca.connect(address, port)
     port = port or Visca.default_port
+    if (port < 1) or (port > 65535) then
+        port = Visca.default_port
+    end
     local sock_addr, sock_err = socket.find_first_address(address, port)
     local error
     local connection = {
