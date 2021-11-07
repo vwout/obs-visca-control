@@ -79,7 +79,7 @@ local function create_camera_controls(props, camera_id, settings)
         local prop_name = obs.obs_properties_get(props, cam_prop_prefix .. "name")
         if prop_name == nil then
             obs.obs_properties_add_text(props, cam_prop_prefix .. "name", "Name" .. cam_name_suffix, obs.OBS_TEXT_DEFAULT)
-            obs.obs_data_set_default_string(plugin_settings, cam_prop_prefix .. "name", cam_name)
+            obs.obs_data_set_default_string(settings, cam_prop_prefix .. "name", cam_name)
         end
         local prop_address = obs.obs_properties_get(props, cam_prop_prefix .. "address")
         if prop_address == nil then
@@ -88,12 +88,12 @@ local function create_camera_controls(props, camera_id, settings)
         local prop_port = obs.obs_properties_get(props, cam_prop_prefix .. "port")
         if prop_port == nil then
             obs.obs_properties_add_int(props, cam_prop_prefix .. "port", "UDP Port" .. cam_name_suffix, 1025, 65535, 1)
-            obs.obs_data_set_default_int(plugin_settings, cam_prop_prefix .. "port", Visca.default_port)
+            obs.obs_data_set_default_int(settings, cam_prop_prefix .. "port", Visca.default_port)
         end
         local prop_mode = obs.obs_properties_add_list(props, cam_prop_prefix .. "mode", "Mode" .. cam_name_suffix, obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
         obs.obs_property_list_add_int(prop_mode, "Generic", Visca.modes.generic)
         obs.obs_property_list_add_int(prop_mode, "PTZOptics", Visca.modes.ptzoptics)
-        obs.obs_data_set_default_int(plugin_settings, cam_prop_prefix .. "mode", Visca.modes.generic)
+        obs.obs_data_set_default_int(settings, cam_prop_prefix .. "mode", Visca.modes.generic)
         local prop_presets = obs.obs_properties_get(props, cam_prop_prefix .. "presets")
         if prop_presets == nil then
             prop_presets = obs.obs_properties_add_editable_list(props, cam_prop_prefix .. "presets", "Presets" .. cam_name_suffix, obs.OBS_EDITABLE_LIST_TYPE_STRINGS, "", "")
@@ -138,7 +138,7 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
     local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
     action_args = action_args or {}
 
-    log("Start cam %d @%s action %d (args %s)", camera_id, camera_address, camera_action, action_args)
+    log("Start cam %d @%s:%d action %d (args %s)", camera_id, camera_address, camera_port, camera_action, action_args)
 
     -- Force close connection before sending On-command to prevent usage of a dead connection
     if camera_action == actions.Camera_On then
@@ -221,6 +221,8 @@ function script_save(settings)
 end
 
 function script_load(settings)
+    plugin_settings = settings
+
     local hotkey_actions = {
         { name = "pan_left", descr = "Pan Left", action = actions.PanTilt, action_args = { direction = Visca.PanTilt_directions.left } },
         { name = "pan_right", descr = "Pan Right", action = actions.PanTilt, action_args = { direction = Visca.PanTilt_directions.right } },
@@ -248,6 +250,10 @@ function script_load(settings)
             cam_name = string.format("Camera %d", camera_id)
         end
 
+        obs.obs_data_set_default_string(settings, cam_prop_prefix .. "name", cam_name)
+        obs.obs_data_set_default_int(settings, cam_prop_prefix .. "port", Visca.default_port)
+        obs.obs_data_set_default_int(settings, cam_prop_prefix .. "mode", Visca.modes.generic)
+        
         for _, v in pairs(hotkey_actions) do
             local hotkey_name = cam_prop_prefix .. v.name
             local hotkey_id = obs.obs_hotkey_register_frontend(hotkey_name, v.descr .. " " .. cam_name, function(pressed)
@@ -627,6 +633,7 @@ function fe_callback(event, data)
                                         local preview_camera_id = obs.obs_data_get_int(settings, "scene_camera")
                                         if camera_active_in_scene(true, preview_camera_id) then
                                             do_action = false
+                                            log("Not running action for source '%s', because it is currently active on program", source_name or "?")
                                         end
                                     end
                                 end
