@@ -294,7 +294,7 @@ function Visca.Message()
     
     function self.to_data(mode)
         mode = mode or Visca.modes.generic
-        local payload_size = self.payload_size or #self.payload
+        local payload_size = (self.payload_size > 0) and self.payload_size or #self.payload
         local data = {}
 
         if mode == Visca.modes.generic then
@@ -310,7 +310,7 @@ function Visca.Message()
             }
         end
 
-        for b = 1, self.payload_size do
+        for b = 1, payload_size do
             table.insert(data, self.payload[b])
         end
 
@@ -344,7 +344,7 @@ function Visca.Message()
         print(string.format('%sMessage:         %s', prefix or '', self.as_string(mode)))
         print(string.format("%sPayload type:    %s (0x%02X%02X)", prefix or '', Visca.payload_type_names[self.payload_type] or 'Unkown', 
                                                                                 math.floor(self.payload_type/256), self.payload_type % 256))
-        print(string.format('%sPayload length:  %d', prefix or '', self.payload_size))
+        print(string.format('%sPayload length:  %d', prefix or '', (self.payload_size > 0) and self.payload_size or #self.payload))
         print(string.format('%sSequence number: %d', prefix or '', self.seq_nr))
         
         if self.message.command then
@@ -355,6 +355,10 @@ function Visca.Message()
             print(string.format('%s                 %s', prefix or '', self.message.reply.as_string()))
         else
             print(string.format('%sPayload:         %s', prefix or '', self.payload))
+            for k,v in pairs(self.payload) do
+                print(string.format('%sPayload:         - byte %02X: 0x%02X', prefix or '', k, v))
+            end
+
         end
         
         return self
