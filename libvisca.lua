@@ -110,7 +110,7 @@ end
 Visca.command_argument_names = {
     [ca_key(Visca.commands.preset, Visca.command_arguments.preset_recall)] = "Absolute Position (Preset)",
     [ca_key(Visca.commands.power,  Visca.command_arguments.power_on)]      = "On",
-    [ca_key(Visca.commands.power,  Visca.command_arguments.power_on)]      = "Off",
+    [ca_key(Visca.commands.power,  Visca.command_arguments.power_standby)] = "Standby",
 }
 
 Visca.PanTilt_directions = {
@@ -446,11 +446,11 @@ function Visca.connect(address, port)
         local msg = Visca.Message()
         msg.payload_type = Visca.payload_types.visca_command
         msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1,  0x0F),
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
                 Visca.packet_consts.command,
                 Visca.categories.camera,
                 Visca.commands.power,
-                on and Visca.command_arguments.power_on or Visca.command_arguments.power_off,
+                on and Visca.command_arguments.power_on or Visca.command_arguments.power_standby,
                 Visca.packet_consts.terminator
             }
 
