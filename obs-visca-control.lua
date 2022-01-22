@@ -277,7 +277,7 @@ end
 function script_properties()
     local props = obs.obs_properties_create()
 
-    local num_cams = obs.obs_properties_add_int(props, "num_cameras", "Number of cameras", 0, 8, 1)
+    local num_cams = obs.obs_properties_add_int(props, "num_cameras", "Number of cameras", 0, 42, 1)
     obs.obs_property_set_modified_callback(num_cams, prop_num_cams)
 
     local num_cameras = obs.obs_data_get_int(plugin_settings, "num_cameras")
