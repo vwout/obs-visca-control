@@ -16,6 +16,8 @@ This plugin requires the camera to support Visca over IP via UDP.
 It follows the specification as designed by Sony and also supports the PTZOptics variant of Visca.
 This plugin has been tested with Everet cameras and is also reported to work with other brands like Avonic, BZB Gear, PTZOptics and Zowietek cameras.
 
+Also visit https://obsproject.com/forum/resources/control-visca-over-ip-based-cameras.1173/ for more information. 
+
 ## Installation
 The plugin is a script plugin and utilizes the Lua scripting capabilities of OBS.
 To use the plugin, add the file `obs-visca-control.lua` as a script, see below for a detailed instruction.
