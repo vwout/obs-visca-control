@@ -72,10 +72,11 @@ Visca.commands = {
     pantilt_home            = 0x04,
     pantilt_reset           = 0x05,
     zoom                    = 0x07,
+    focus                   = 0x08,
     exposure_gain           = 0x0C,
     preset                  = 0x3F,
     zoom_to                 = 0x47,
-    focus                   = 0x48,
+    focus_direct            = 0x48,
     exposure_auto           = 0x49,
     exposure_shutter_direct = 0x4A,
     exposure_iris_direct    = 0x4B,
@@ -87,10 +88,11 @@ Visca.command_names = {
     [Visca.commands.pantilt_home]            = "Pan/Tilt (Home)",
     [Visca.commands.pantilt_reset]           = "Pan/Tilt (Reset)",
     [Visca.commands.zoom]                    = "Zoom",
+    [Visca.commands.focus]                   = "Focus",
     [Visca.commands.exposure_gain]           = "Gain",
     [Visca.commands.preset]                  = "Preset",
     [Visca.commands.zoom_to]                 = "Zoom (to)",
-    [Visca.commands.focus]                   = "Focus",
+    [Visca.commands.focus_direct]            = "Focus (Direct)",
     [Visca.commands.exposure_auto]           = "Auto Exposure",
     [Visca.commands.exposure_iris_direct]    = "Iris Absolute",
     [Visca.commands.exposure_shutter_direct] = "Shutter Absolute",
@@ -98,9 +100,14 @@ Visca.command_names = {
 }
 
 Visca.command_arguments = {
-    preset_recall           = 0x02,
-    power_on                = 0x02,
-    power_standby           = 0x03,
+    preset_recall    = 0x02,
+    power_on         = 0x02,
+    power_standby    = 0x03,
+    focus_stop       = 0x00,
+    focus_far_std    = 0x02,
+    focus_near_std   = 0x03,
+    focus_far_var    = 0x20,
+    focus_near_var   = 0x30,
 }
 
 local function ca_key(command, argument)
@@ -108,9 +115,22 @@ local function ca_key(command, argument)
 end
 
 Visca.command_argument_names = {
-    [ca_key(Visca.commands.preset, Visca.command_arguments.preset_recall)] = "Absolute Position (Preset)",
-    [ca_key(Visca.commands.power,  Visca.command_arguments.power_on)]      = "On",
-    [ca_key(Visca.commands.power,  Visca.command_arguments.power_standby)] = "Standby",
+    [ca_key(Visca.commands.preset,  Visca.command_arguments.preset_recall)]   = "Absolute Position (Preset)",
+    [ca_key(Visca.commands.power,   Visca.command_arguments.power_on)]        = "On",
+    [ca_key(Visca.commands.power,   Visca.command_arguments.power_standby)]   = "Standby",
+    [ca_key(Visca.commands.focus,   Visca.command_arguments.focus_stop)]      = "Stop",
+    [ca_key(Visca.commands.focus,   Visca.command_arguments.focus_far_std)]   = "Far (standard speed)",
+    [ca_key(Visca.commands.focus,   Visca.command_arguments.focus_near_std)]  = "Near (standard speed)",
+    [ca_key(Visca.commands.focus,   Visca.command_arguments.focus_far_var)]   = "Far (variable speed)",
+    [ca_key(Visca.commands.focus,   Visca.command_arguments.focus_near_var)]  = "Near (variable speed)",
+}
+
+Visca.Focus_modes = {
+    auto             = 0x3802,
+    manual           = 0x3803,
+    toggle           = 0x3810,
+    one_push_trigger = 0x1801,
+    infinity         = 0x1802,
 }
 
 Visca.PanTilt_directions = {
@@ -134,14 +154,16 @@ Visca.Zoom_subcommand = {
 }
 
 Visca.limits = {
-    PAN_MIN_SPEED  = 0x01,
-    PAN_MAX_SPEED  = 0x18,
-    TILT_MIN_SPEED = 0x01,
-    TILT_MAX_SPEED = 0x18,
-    ZOOM_MIN_SPEED = 0x00,
-    ZOOM_MAX_SPEED = 0x07,
-    ZOOM_MIN_VALUE = 0x0000,
-    ZOOM_MAX_VALUE = 0x4000,
+    PAN_MIN_SPEED   = 0x01,
+    PAN_MAX_SPEED   = 0x18,
+    FOCUS_MIN_SPEED = 0x00,
+    FOCUS_MAX_SPEED = 0x07,
+    TILT_MIN_SPEED  = 0x01,
+    TILT_MAX_SPEED  = 0x18,
+    ZOOM_MIN_SPEED  = 0x00,
+    ZOOM_MAX_SPEED  = 0x07,
+    ZOOM_MIN_VALUE  = 0x0000,
+    ZOOM_MAX_VALUE  = 0x4000,
 }
 
 -- A Visca message is binary data with a message header (8 bytes) and payload (1 to 16 bytes).
@@ -452,6 +474,81 @@ function Visca.connect(address, port)
     end
     
     function connection.await_completion_for(message)
+    end
+
+    function connection.Cam_Focus_Mode(mode)
+        if has_value(Visca.Focus_modes, mode) then
+            local msg = Visca.Message()
+            msg.payload_type = Visca.payload_types.visca_command
+            msg.payload = {
+                    Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                    Visca.packet_consts.command,
+                    Visca.categories.focus,
+                    bit.band(bit.rshift(mode, 8), 0xFF),
+                    bit.band(mode, 0xFF),
+                    Visca.packet_consts.terminator
+                }
+
+            return connection.send(msg)
+        else
+            if Visca.debug then
+                print(string.format("Cam_Focus_Mode invalid mode (0x%04x)", mode or 0))
+            end
+            return 0
+        end
+    end
+
+    function connection.Cam_Focus_Stop()
+        local msg = Visca.Message()
+        msg.payload_type = Visca.payload_types.visca_command
+        msg.payload = {
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.command,
+                Visca.categories.focus,
+                Visca.commands.focus,
+                Visca.command_arguments.focus_stop,
+                Visca.packet_consts.terminator
+            }
+
+        return connection.send(msg)
+    end
+
+    function connection.Cam_Focus_Far(speed)
+        if speed then
+            speed = math.min(math.max(speed or 0x02, Visca.limits.FOCUS_MIN_SPEED), Visca.limits.FOCUS_MAX_SPEED)
+        end
+
+        local msg = Visca.Message()
+        msg.payload_type = Visca.payload_types.visca_command
+        msg.payload = {
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.command,
+                Visca.categories.focus,
+                Visca.commands.focus,
+                speed and bit.bor(Visca.command_arguments.focus_far_var, bit.band(speed, 0x07)) or Visca.command_arguments.focus_far_std,
+                Visca.packet_consts.terminator
+            }
+
+        return connection.send(msg)
+    end
+
+    function connection.Cam_Focus_Near(speed)
+        if speed then
+            speed = math.min(math.max(speed or 0x02, Visca.limits.FOCUS_MIN_SPEED), Visca.limits.FOCUS_MAX_SPEED)
+        end
+
+        local msg = Visca.Message()
+        msg.payload_type = Visca.payload_types.visca_command
+        msg.payload = {
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.command,
+                Visca.categories.focus,
+                Visca.commands.focus,
+                speed and bit.bor(Visca.command_arguments.focus_near_var, bit.band(speed, 0x07)) or Visca.command_arguments.focus_near_std,
+                Visca.packet_consts.terminator
+            }
+
+        return connection.send(msg)
     end
 
     function connection.Cam_Power(on, await_ack, await_completion)
