@@ -104,7 +104,7 @@ Visca.command_arguments = {
 }
 
 local function ca_key(command, argument)
-    return bit.lshift(command, 8) + argument
+    return bit.lshift(command or 0, 8) + (argument or 0)
 end
 
 Visca.command_argument_names = {
@@ -201,8 +201,8 @@ function Visca.Message()
         end
                 
         function self.as_string()
-            local args = '-'
-            if #self.arguments then
+            local args = '- (no arguments)'
+            if #self.arguments > 0 then
                 local descr = Visca.command_argument_names[ca_key(self.command, self.arguments[1])]
                 
                 local str_a = {}
@@ -214,9 +214,15 @@ function Visca.Message()
             end
 
             if self.is_command() then
-                return string.format('Command on %s: %s, %s', Visca.category_names[self.category], Visca.command_names[self.command] or 'Unknown', args)
+                return string.format('Command on %s: %s, %s',
+                    Visca.category_names[self.category],
+                    Visca.command_names[self.command] or string.format("Unknown (0x%0x)", self.command),
+                    args)
             elseif self.is_inquiry() then
-                return string.format('Inquiry on %s: %s, %s', Visca.category_names[self.category], Visca.command_names[self.command] or 'Unknown', args)
+                return string.format('Inquiry on %s: %s, %s',
+                    Visca.category_names[self.category],
+                    Visca.command_names[self.command] or string.format("Unknown (0x%0x)", self.command),
+                    args)
             else
                 return 'Unknown'
             end
@@ -321,12 +327,12 @@ function Visca.Message()
 
         return table.concat(str_a)
     end
-    
+
     function self.as_string(mode)
         mode = mode or Visca.modes.generic
         local bin_str = self.to_data(mode)
         local bin_len = #(bin_str or "")
-        
+
         local str_a = {}
         for b = 1, bin_len do
             table.insert(str_a, string.format('%02X', string.byte(bin_str, b)))
@@ -337,16 +343,16 @@ function Visca.Message()
 
     function self.dump(name, prefix, mode)
         if name then
-          print('\n' .. name)
+          print('\n' .. name .. ':')
         end
         prefix = prefix or '- '
-        
+
         print(string.format('%sMessage:         %s', prefix or '', self.as_string(mode)))
-        print(string.format("%sPayload type:    %s (0x%02X%02X)", prefix or '', Visca.payload_type_names[self.payload_type] or 'Unkown', 
+        print(string.format("%sPayload type:    %s (0x%02X%02X)", prefix or '', Visca.payload_type_names[self.payload_type] or 'Unkown',
                                                                                 math.floor(self.payload_type/256), self.payload_type % 256))
         print(string.format('%sPayload length:  %d', prefix or '', (self.payload_size > 0) and self.payload_size or #self.payload))
         print(string.format('%sSequence number: %d', prefix or '', self.seq_nr))
-        
+
         if self.message.command then
             print(string.format('%sPayload:         Command', prefix or ''))
             print(string.format('%s                 %s', prefix or '', self.message.command.as_string()))
@@ -360,7 +366,7 @@ function Visca.Message()
             end
 
         end
-        
+
         return self
     end
 
@@ -430,16 +436,18 @@ function Visca.connect(address, port)
 
         if Visca.debug then
             print(string.format("Connection send %s", message.as_string(connection.mode)))
+            message.dump(nil, nil, connection.mode)
         end
 
+        local data_to_send = message.to_data(connection.mode)
         local sock = connection.sock
         if sock ~= nil then
-            return sock:send_to(connection.address, message.to_data(connection.mode))
+            return sock:send_to(connection.address, data_to_send), data_to_send
         else
-            return 0
+            return 0, data_to_send
         end
     end
-    
+
     function connection.await_ack_for(message)
     end
     
