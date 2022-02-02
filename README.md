@@ -43,6 +43,8 @@ For each camera a set of configuration properties will be shown:
 - Mode: The operating mode of the plugin. The default is `Generic`, which follows the original (Sony) Visca specification. Other supported modes are `PTZOptics`, to send commands according the PTZOptics Visca protocol.
 - The list of presets that you want to configure for the camera
 
+**Important: Reload the script after changing the address, port of mode configuration!**
+
 Switch between cameras using the drop-down.
 Reload the plugin to update the names of the cameras in the camera drop-down list.
 
