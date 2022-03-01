@@ -511,11 +511,7 @@ local function do_cam_scene_action(settings, start)
 end
 
 local function fe_callback(event, data)
-    if event == obs.OBS_FRONTEND_EVENT_SCENE_CHANGED then
-        --local scenesource = obs.obs_frontend_get_current_scene()
-        --log("fe_callback OBS_FRONTEND_EVENT_SCENE_CHANGED to %s", plugin_data.active_scene or "?")
-        --obs.obs_source_release(scenesource)
-    elseif event == obs.OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED then
+    if event == obs.OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED then
         local scenesource = obs.obs_frontend_get_current_preview_scene()
         if scenesource ~= nil then
             local scene = obs.obs_scene_from_source(scenesource)
