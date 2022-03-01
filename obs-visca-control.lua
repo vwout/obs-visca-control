@@ -30,7 +30,13 @@ local actions = {
     Preset_Recal = 2,
     PanTilt = 3,
     Zoom_In = 4,
-    Zoom_Out = 5
+    Zoom_Out = 5,
+    Focus_Auto = 6,
+    Focus_Manual = 7,
+    Focus_Near = 8,
+    Focus_Far = 9,
+    Focus_Refocus = 10,
+    Focus_Infinity = 11,
 }
 
 local action_active = {
@@ -268,6 +274,18 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
             connection.Cam_Zoom_Tele(action_args.speed)
         elseif camera_action == actions.Zoom_Out then
             connection.Cam_Zoom_Wide(action_args.speed)
+        elseif camera_action == actions.Focus_Auto then
+            connection.Cam_Focus_Mode(Visca.Focus_modes.auto)
+        elseif camera_action == actions.Focus_Manual then
+            connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
+        elseif camera_action == actions.Focus_Refocus then
+            connection.Cam_Focus_Mode(Visca.Focus_modes.one_push_trigger)
+        elseif camera_action == actions.Focus_Infinity then
+            connection.Cam_Focus_Mode(Visca.Focus_modes.infinity)
+        elseif camera_action == actions.Focus_Near then
+            connection.Cam_Focus_Near()
+        elseif camera_action == actions.Focus_Far then
+            connection.Cam_Focus_Far()
         end
     end
 end
@@ -289,6 +307,10 @@ local function do_cam_action_stop(camera_id, camera_action, action_args)
             connection.Cam_Zoom_Stop()
         elseif camera_action == actions.Zoom_Out then
             connection.Cam_Zoom_Stop()
+        elseif camera_action == actions.Focus_Near then
+            connection.Cam_Focus_Stop()
+        elseif camera_action == actions.Focus_Far then
+            connection.Cam_Focus_Stop()
         end
     end
 end
@@ -338,6 +360,12 @@ function script_load(settings)
             action_args = { direction = Visca.PanTilt_directions.down } },
         { name = "zoom_in", descr = "Zoom In", action = actions.Zoom_In },
         { name = "zoom_out", descr = "Zoom Out", action = actions.Zoom_Out },
+        { name = "focus_auto", descr = "Focus mode Automatic", action = actions.Focus_Auto },
+        { name = "focus_manual", descr = "Focus mode Manual", action = actions.Focus_Manual },
+        { name = "focus_trigger", descr = "Focus trigger Refocus", action = actions.Focus_Refocus },
+        { name = "focus_near", descr = "Focus to Near", action = actions.Focus_Near },
+        { name = "focus_far", descr = "Focus to Far", action = actions.Focus_Far },
+        { name = "focus_infinity", descr = "Focus to Infinity", action = actions.Focus_Infinity },
         { name = "preset_0", descr = "Preset 0", action = actions.Preset_Recal, action_args = { preset = 0 } },
         { name = "preset_1", descr = "Preset 1", action = actions.Preset_Recal, action_args = { preset = 1 } },
         { name = "preset_2", descr = "Preset 2", action = actions.Preset_Recal, action_args = { preset = 2 } },
