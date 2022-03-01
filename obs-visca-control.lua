@@ -392,7 +392,7 @@ function script_load(settings)
 
         for _, v in pairs(hotkey_actions) do
             local hotkey_name = cam_prop_prefix .. v.name
-            local hotkey_id = obs.obs_hotkey_register_frontend(hotkey_name, v.descr .. " " .. cam_name,
+            local hotkey_id = obs.obs_hotkey_register_frontend(hotkey_name, v.descr .. " on " .. cam_name,
                 function(pressed)
                     cb_camera_hotkey(pressed, { name = hotkey_name, camera_id = camera_id, action = v.action,
                         action_args = v.action_args })
