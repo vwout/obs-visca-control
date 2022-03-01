@@ -11,6 +11,7 @@ Besides recalling a pre-made preset, this plugin supports a few more control ope
 - Preset Recall
 - Zoom (Stop, In - Tele, Out - Wide, Direct)
 - Pan/Tilt (Up, Down, Left, Right, Upleft, Upright, Downleft, Downright, Stop, Home, Reset)
+- Focus (Manual mode, Automatic mode, Trigger refocus, To infinity, Near, Far)
 
 This plugin requires the camera to support Visca over IP via UDP.
 It follows the specification as designed by Sony and also supports the PTZOptics variant of Visca.
@@ -65,7 +66,9 @@ When the action 'Preset Recall' is chosen, the preset also needs to be chosen. T
 For the action Pan/Tilt, the direction and speed also needs to be selected. Note that this action does not use a specific starting position, the pan action starts from the camera position that is actual when the scene becomes active.
 The camera action is executed when either the scene in which the source is used becomes active in preview, in program, or both, depending on the selected entry in the selection.
 
-Presets 0-9, Pan/Tilt actions up/down/left/right and Zoom in/out can also be recalled via a hotkey. To use any of these actions, configure a hotkey in the global OBS setttings.
+Presets 0-9, Pan/Tilt actions up/down/left/right and Zoom in/out can also be recalled via a hotkey.
+Focus commands can only be called via a hotkey.
+To use any of these actions, configure a hotkey in the global OBS setttings.
 ![Hotkey configuration](images/docs/hotkey_settings.png)
 
 Pressing the configured key combination will perform an immediate zoom, pan or tilt step at the camera.
