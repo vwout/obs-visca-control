@@ -527,9 +527,17 @@ local function do_cam_scene_action(settings, start)
         speed = obs.obs_data_get_double(settings, "scene_speed")
     }
     local active = obs.obs_data_get_int(settings, "scene_active")
+    local delay = obs.obs_data_get_int(settings, "scene_action_delay") or 0
 
     if start then
-        do_cam_action_start(camera_id, scene_action, action_args)
+        if delay > 0 then
+            obs.timer_add(function()
+                obs.remove_current_callback()
+                do_cam_action_start(camera_id, scene_action, action_args)
+            end, delay)
+        else
+            do_cam_action_start(camera_id, scene_action, action_args)
+        end
     else
         if not camera_active_in_scene(true, camera_id) and (active == action_active.Program or
             not camera_active_in_scene(false, camera_id)) then
@@ -726,6 +734,8 @@ plugin_def.get_properties = function(data)
 
     obs.obs_properties_add_bool(props, "preview_exclusive",
         "Run action on preview only when the camera is not active on program")
+
+    obs.obs_properties_add_int(props, "scene_action_delay", "Delay Action (ms)", 0, 777333, 1)
 
     --obs.obs_properties_add_button(props, "run_action", "Perform action now", cb_run_action)
 

@@ -38,11 +38,11 @@ Before the plugin can be used in a scene, it requires configuration in the `Scri
 
 Start by enumerating the number of cameras cameras that you want to control.
 For each camera a set of configuration properties will be shown:
-- Name: A friendly name for easy recognition of the camera
-- Address: The IP address at which the camera is available.
-- Port: The plugin by default uses _UDP_ port `52381`. Change this port when needed, e.g. to `1259` for a PTZOptics camera.
-- Mode: The operating mode of the plugin. The default is `Generic`, which follows the original (Sony) Visca specification. Other supported modes are `PTZOptics`, to send commands according the PTZOptics Visca protocol.
-- The list of presets that you want to configure for the camera
+- _Name_: A friendly name for easy recognition of the camera
+- _Address_: The IP address at which the camera is available.
+- _Port_: The plugin by default uses _UDP_ port `52381`. Change this port when needed, e.g. to `1259` for a PTZOptics camera.
+- _Mode_: The operating mode of the plugin. The default is `Generic`, which follows the original (Sony) Visca specification. Other supported modes are `PTZOptics`, to send commands according the PTZOptics Visca protocol.
+- _Presets_: The list of presets that you want to configure for the camera
 
 **Important: Reload the script after changing the address, port of mode configuration!**
 
@@ -58,14 +58,25 @@ The separator can be `:`, `=` or `-`.
 Valid examples are `0: Home`, `5 = Pastor` or `Stage - 6`
 
 ## Usage
+### In a scene
 To control a camera, add a `Visca Camera Control` source to a scene.
 ![Source configuration](images/docs/scene_settings.png)
 
 In the source settings, select the camera and the action that should be executed.
-When the action 'Preset Recall' is chosen, the preset also needs to be chosen. These presets needs to be configured per camera in the script settings, see [configuration](#configuration).
-For the action Pan/Tilt, the direction and speed also needs to be selected. Note that this action does not use a specific starting position, the pan action starts from the camera position that is actual when the scene becomes active.
-The camera action is executed when either the scene in which the source is used becomes active in preview, in program, or both, depending on the selected entry in the selection.
+- _Camera_: The camera configured in the plugin (see [configuration](#configuration))
+- _Action_: Select the action that needs to be executed
+  - When the action 'Preset Recall' is chosen, the preset also needs to be chosen.
+  These presets need to be configured per camera in the script settings, see [configuration](#configuration).
+  - For the action 'Pan/Tilt', the direction and speed also needs to be selected. 
+  Note that this action does not use a specific starting position, the pan action starts from the camera position that is actual when the scene becomes active.
+  - For 'Zoom In' and 'Zoom Out', the animation speeds determines the zoom speed.
+- _Action Active_: The camera action is executed when either the scene in which the source is used becomes active in preview, in program, or both, depending on the selected entry in the selection.
+- To make sure that a preview does not change settings of a camera that is on program, select the checkbox 'Run action on preview only when the camera is not active on program'.
+- _Delay Action_: When not set (left to 0), the action is immediately executed when the scene becomes active.
+To delay the action execution, for example to synchronize after completion of a transition, set it to the number of milliseconds to wait.
+This delay can also be used to run multiple actions in sequence
 
+### Hotkeys
 Presets 0-9, Pan/Tilt actions up/down/left/right and Zoom in/out can also be recalled via a hotkey.
 Focus commands can only be called via a hotkey.
 To use any of these actions, configure a hotkey in the global OBS setttings.
