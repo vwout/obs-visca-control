@@ -83,7 +83,8 @@ To use any of these actions, configure a hotkey in the global OBS setttings.
 ![Hotkey configuration](images/docs/hotkey_settings.png)
 
 Pressing the configured key combination will perform an immediate zoom, pan or tilt step at the camera.
-The amount of effective zoom, pan or tilt may vary from camera to camera.
+The amount of effective zoom, pan, tilt or focus change may vary from camera to camera.
+When any of the focus commands is used, the camera will be switched to manual focus (except for the command to switch to automatic mode).
 The actions will obviously only be executed when the camera actually supports zooming, panning or tilting. 
 
 # Credits

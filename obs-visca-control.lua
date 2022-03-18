@@ -279,12 +279,16 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
         elseif camera_action == actions.Focus_Manual then
             connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
         elseif camera_action == actions.Focus_Refocus then
+            connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
             connection.Cam_Focus_Mode(Visca.Focus_modes.one_push_trigger)
         elseif camera_action == actions.Focus_Infinity then
+            connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
             connection.Cam_Focus_Mode(Visca.Focus_modes.infinity)
         elseif camera_action == actions.Focus_Near then
+            connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
             connection.Cam_Focus_Near()
         elseif camera_action == actions.Focus_Far then
+            connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
             connection.Cam_Focus_Far()
         end
     end
