@@ -76,10 +76,15 @@ In the source settings, select the camera and the action that should be executed
 To delay the action execution, for example to synchronize after completion of a transition, set it to the number of milliseconds to wait.
 This delay can also be used to run multiple actions in sequence
 
+Camera actions configured for a scene are executed as configured when the scene is activated or deactivated on preview or on program.
+To temporarily suppress execution of scene actions, configure the hotkey '_Suppress actions on scenes_'.
+As long as the hotkey is pressed, actions are not executed.
+To permanently disable execution, without removing the configuration, change the visibility of the `Visca Camera Control` source in the scene to 'hidden'. 
+
 ### Hotkeys
 Presets 0-9, Pan/Tilt actions up/down/left/right and Zoom in/out can also be recalled via a hotkey.
 Focus commands can only be called via a hotkey.
-To use any of these actions, configure a hotkey in the global OBS setttings.
+To use any of these actions, configure a hotkey in the global OBS settings.
 ![Hotkey configuration](images/docs/hotkey_settings.png)
 
 Pressing the configured key combination will perform an immediate zoom, pan or tilt step at the camera.

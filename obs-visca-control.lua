@@ -22,9 +22,19 @@ local plugin_data = {
     preview_scene = nil,
     connections = {},
     hotkeys = {},
+    suppress_scene_actions = false,
 }
 
-local actions = {
+local plugin_actions = {
+    Suppress_Scene_Actions = 0,
+}
+
+local scene_action_at = {
+    Start = true,
+    Stop = false,
+}
+
+local camera_actions = {
     Camera_Off = 0,
     Camera_On = 1,
     Preset_Recal = 2,
@@ -39,7 +49,7 @@ local actions = {
     Focus_Infinity = 11,
 }
 
-local action_active = {
+local camera_action_active = {
     Program = 1,
     Preview = 2,
     Always = 3,
@@ -240,6 +250,12 @@ local function open_visca_connection(camera_id, camera_address, camera_port, cam
     return connection
 end
 
+local function cb_plugin_hotkey(pressed, hotkey_data)
+    if hotkey_data.action == plugin_actions.Suppress_Scene_Actions then
+        plugin_data.suppress_scene_actions = pressed and true or false
+    end
+end
+
 local function do_cam_action_start(camera_id, camera_action, action_args)
     local cam_prop_prefix = string.format("cam_%d_", camera_id)
     local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
@@ -250,44 +266,44 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
     log("Start cam %d @%s:%d action %d (args %s)", camera_id, camera_address, camera_port, camera_action, action_args)
 
     -- Force close connection before sending On-command to prevent usage of a dead connection
-    if camera_action == actions.Camera_On then
+    if camera_action == camera_actions.Camera_On then
         close_visca_connection(camera_id)
     end
 
     local connection = open_visca_connection(camera_id, camera_address, camera_port, camera_mode)
 
     if connection then
-        if camera_action == actions.Camera_Off then
+        if camera_action == camera_actions.Camera_Off then
             connection.Cam_Power(false)
 
             -- Force close connection after sending Off-command.
             connection.close()
             plugin_data.connections[camera_id] = nil
-        elseif camera_action == actions.Camera_On then
+        elseif camera_action == camera_actions.Camera_On then
             connection.Cam_Power(true)
-        elseif camera_action == actions.Preset_Recal and action_args.preset then
+        elseif camera_action == camera_actions.Preset_Recal and action_args.preset then
             connection.Cam_Preset_Recall(action_args.preset)
-        elseif camera_action == actions.PanTilt then
+        elseif camera_action == camera_actions.PanTilt then
             connection.Cam_PanTilt(action_args.direction or Visca.PanTilt_directions.stop, action_args.speed or 0x03,
                 action_args.speed or 0x03)
-        elseif camera_action == actions.Zoom_In then
+        elseif camera_action == camera_actions.Zoom_In then
             connection.Cam_Zoom_Tele(action_args.speed)
-        elseif camera_action == actions.Zoom_Out then
+        elseif camera_action == camera_actions.Zoom_Out then
             connection.Cam_Zoom_Wide(action_args.speed)
-        elseif camera_action == actions.Focus_Auto then
+        elseif camera_action == camera_actions.Focus_Auto then
             connection.Cam_Focus_Mode(Visca.Focus_modes.auto)
-        elseif camera_action == actions.Focus_Manual then
+        elseif camera_action == camera_actions.Focus_Manual then
             connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
-        elseif camera_action == actions.Focus_Refocus then
+        elseif camera_action == camera_actions.Focus_Refocus then
             connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
             connection.Cam_Focus_Mode(Visca.Focus_modes.one_push_trigger)
-        elseif camera_action == actions.Focus_Infinity then
+        elseif camera_action == camera_actions.Focus_Infinity then
             connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
             connection.Cam_Focus_Mode(Visca.Focus_modes.infinity)
-        elseif camera_action == actions.Focus_Near then
+        elseif camera_action == camera_actions.Focus_Near then
             connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
             connection.Cam_Focus_Near()
-        elseif camera_action == actions.Focus_Far then
+        elseif camera_action == camera_actions.Focus_Far then
             connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
             connection.Cam_Focus_Far()
         end
@@ -305,15 +321,15 @@ local function do_cam_action_stop(camera_id, camera_action, action_args)
     local connection = open_visca_connection(camera_id, camera_address, camera_port, camera_mode)
 
     if connection then
-        if camera_action == actions.PanTilt then
+        if camera_action == camera_actions.PanTilt then
             connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
-        elseif camera_action == actions.Zoom_In then
+        elseif camera_action == camera_actions.Zoom_In then
             connection.Cam_Zoom_Stop()
-        elseif camera_action == actions.Zoom_Out then
+        elseif camera_action == camera_actions.Zoom_Out then
             connection.Cam_Zoom_Stop()
-        elseif camera_action == actions.Focus_Near then
+        elseif camera_action == camera_actions.Focus_Near then
             connection.Cam_Focus_Stop()
-        elseif camera_action == actions.Focus_Far then
+        elseif camera_action == camera_actions.Focus_Far then
             connection.Cam_Focus_Stop()
         end
     end
@@ -353,33 +369,56 @@ end
 function script_load(settings)
     plugin_settings = settings
 
-    local hotkey_actions = {
-        { name = "pan_left", descr = "Pan Left", action = actions.PanTilt,
+    local plugin_hotkey_actions = {
+        { name = "suppress_scene_actions", descr = "Suppress actions on scenes",
+            action = plugin_actions.Suppress_Scene_Actions },
+    }
+
+    for _, v in pairs(plugin_hotkey_actions) do
+        local hotkey_name = "visca_" .. v.name
+        local hotkey_id = obs.obs_hotkey_register_frontend(hotkey_name, v.descr .. " for Visca cams",
+            function(pressed)
+                cb_plugin_hotkey(pressed, { name = hotkey_name, action = v.action, action_args = v.action_args })
+            end)
+
+        local a = obs.obs_data_get_array(settings, hotkey_name .. "_hotkey")
+        obs.obs_hotkey_load(hotkey_id, a)
+        obs.obs_data_array_release(a)
+
+        table.insert(plugin_data.hotkeys, {
+            name = hotkey_name,
+            id = hotkey_id,
+            action = v.action
+        })
+    end
+
+    local camera_hotkey_actions = {
+        { name = "pan_left", descr = "Pan Left", action = camera_actions.PanTilt,
             action_args = { direction = Visca.PanTilt_directions.left } },
-        { name = "pan_right", descr = "Pan Right", action = actions.PanTilt,
+        { name = "pan_right", descr = "Pan Right", action = camera_actions.PanTilt,
             action_args = { direction = Visca.PanTilt_directions.right } },
-        { name = "tilt_up", descr = "Tilt Up", action = actions.PanTilt,
+        { name = "tilt_up", descr = "Tilt Up", action = camera_actions.PanTilt,
             action_args = { direction = Visca.PanTilt_directions.up } },
-        { name = "tilt_down", descr = "Tilt Down", action = actions.PanTilt,
+        { name = "tilt_down", descr = "Tilt Down", action = camera_actions.PanTilt,
             action_args = { direction = Visca.PanTilt_directions.down } },
-        { name = "zoom_in", descr = "Zoom In", action = actions.Zoom_In },
-        { name = "zoom_out", descr = "Zoom Out", action = actions.Zoom_Out },
-        { name = "focus_auto", descr = "Focus mode Automatic", action = actions.Focus_Auto },
-        { name = "focus_manual", descr = "Focus mode Manual", action = actions.Focus_Manual },
-        { name = "focus_trigger", descr = "Focus trigger Refocus", action = actions.Focus_Refocus },
-        { name = "focus_near", descr = "Focus to Near", action = actions.Focus_Near },
-        { name = "focus_far", descr = "Focus to Far", action = actions.Focus_Far },
-        { name = "focus_infinity", descr = "Focus to Infinity", action = actions.Focus_Infinity },
-        { name = "preset_0", descr = "Preset 0", action = actions.Preset_Recal, action_args = { preset = 0 } },
-        { name = "preset_1", descr = "Preset 1", action = actions.Preset_Recal, action_args = { preset = 1 } },
-        { name = "preset_2", descr = "Preset 2", action = actions.Preset_Recal, action_args = { preset = 2 } },
-        { name = "preset_3", descr = "Preset 3", action = actions.Preset_Recal, action_args = { preset = 3 } },
-        { name = "preset_4", descr = "Preset 4", action = actions.Preset_Recal, action_args = { preset = 4 } },
-        { name = "preset_5", descr = "Preset 5", action = actions.Preset_Recal, action_args = { preset = 5 } },
-        { name = "preset_6", descr = "Preset 6", action = actions.Preset_Recal, action_args = { preset = 6 } },
-        { name = "preset_7", descr = "Preset 7", action = actions.Preset_Recal, action_args = { preset = 7 } },
-        { name = "preset_8", descr = "Preset 8", action = actions.Preset_Recal, action_args = { preset = 8 } },
-        { name = "preset_9", descr = "Preset 9", action = actions.Preset_Recal, action_args = { preset = 9 } },
+        { name = "zoom_in", descr = "Zoom In", action = camera_actions.Zoom_In },
+        { name = "zoom_out", descr = "Zoom Out", action = camera_actions.Zoom_Out },
+        { name = "focus_auto", descr = "Focus mode Automatic", action = camera_actions.Focus_Auto },
+        { name = "focus_manual", descr = "Focus mode Manual", action = camera_actions.Focus_Manual },
+        { name = "focus_trigger", descr = "Focus trigger Refocus", action = camera_actions.Focus_Refocus },
+        { name = "focus_near", descr = "Focus to Near", action = camera_actions.Focus_Near },
+        { name = "focus_far", descr = "Focus to Far", action = camera_actions.Focus_Far },
+        { name = "focus_infinity", descr = "Focus to Infinity", action = camera_actions.Focus_Infinity },
+        { name = "preset_0", descr = "Preset 0", action = camera_actions.Preset_Recal, action_args = { preset = 0 } },
+        { name = "preset_1", descr = "Preset 1", action = camera_actions.Preset_Recal, action_args = { preset = 1 } },
+        { name = "preset_2", descr = "Preset 2", action = camera_actions.Preset_Recal, action_args = { preset = 2 } },
+        { name = "preset_3", descr = "Preset 3", action = camera_actions.Preset_Recal, action_args = { preset = 3 } },
+        { name = "preset_4", descr = "Preset 4", action = camera_actions.Preset_Recal, action_args = { preset = 4 } },
+        { name = "preset_5", descr = "Preset 5", action = camera_actions.Preset_Recal, action_args = { preset = 5 } },
+        { name = "preset_6", descr = "Preset 6", action = camera_actions.Preset_Recal, action_args = { preset = 6 } },
+        { name = "preset_7", descr = "Preset 7", action = camera_actions.Preset_Recal, action_args = { preset = 7 } },
+        { name = "preset_8", descr = "Preset 8", action = camera_actions.Preset_Recal, action_args = { preset = 8 } },
+        { name = "preset_9", descr = "Preset 9", action = camera_actions.Preset_Recal, action_args = { preset = 9 } },
     }
 
     local num_cameras = obs.obs_data_get_int(settings, "num_cameras")
@@ -394,7 +433,7 @@ function script_load(settings)
         obs.obs_data_set_default_int(settings, cam_prop_prefix .. "port", Visca.default_port)
         obs.obs_data_set_default_int(settings, cam_prop_prefix .. "mode", Visca.modes.generic)
 
-        for _, v in pairs(hotkey_actions) do
+        for _, v in pairs(camera_hotkey_actions) do
             local hotkey_name = cam_prop_prefix .. v.name
             local hotkey_id = obs.obs_hotkey_register_frontend(hotkey_name, v.descr .. " on " .. cam_name,
                 function(pressed)
@@ -462,16 +501,16 @@ local function cb_camera_action_changed(props, property, data)
 
     for camera_id = 1, num_cameras do
         local visible = scene_camera == camera_id
-        if scene_action ~= actions.Preset_Recal then
+        if scene_action ~= camera_actions.Preset_Recal then
             visible = false
         end
 
         changed = set_property_visibility(props, string.format("scene_cam_%d_preset", camera_id), visible) or changed
     end
 
-    changed = set_property_visibility(props, "scene_direction", scene_action == actions.PanTilt) or changed
-    local need_speed = (scene_action == actions.PanTilt) or (scene_action == actions.Zoom_In) or
-        (scene_action == actions.Zoom_Out)
+    changed = set_property_visibility(props, "scene_direction", scene_action == camera_actions.PanTilt) or changed
+    local need_speed = (scene_action == camera_actions.PanTilt) or (scene_action == camera_actions.Zoom_In) or
+        (scene_action == camera_actions.Zoom_Out)
     changed = set_property_visibility(props, "scene_speed", need_speed) or changed
 
     return changed
@@ -520,33 +559,37 @@ local function camera_active_in_scene(program, camera_id)
     return active
 end
 
-local function do_cam_scene_action(settings, start)
+local function do_cam_scene_action(settings, action_at)
     local camera_id = obs.obs_data_get_int(settings, "scene_camera")
     local scene_action = obs.obs_data_get_int(settings, "scene_action")
     local cam_prop_prefix = string.format("cam_%d_", camera_id)
 
-    local action_args = {
-        preset = obs.obs_data_get_int(settings, "scene_" .. cam_prop_prefix .. "preset"),
-        direction = obs.obs_data_get_int(settings, "scene_direction"),
-        speed = obs.obs_data_get_double(settings, "scene_speed")
-    }
-    local active = obs.obs_data_get_int(settings, "scene_active")
-    local delay = obs.obs_data_get_int(settings, "scene_action_delay") or 0
+    if not plugin_data.suppress_scene_actions then
+        local action_args = {
+            preset = obs.obs_data_get_int(settings, "scene_" .. cam_prop_prefix .. "preset"),
+            direction = obs.obs_data_get_int(settings, "scene_direction"),
+            speed = obs.obs_data_get_double(settings, "scene_speed")
+        }
+        local active = obs.obs_data_get_int(settings, "scene_active")
+        local delay = obs.obs_data_get_int(settings, "scene_action_delay") or 0
 
-    if start then
-        if delay > 0 then
-            obs.timer_add(function()
-                obs.remove_current_callback()
+        if action_at == scene_action_at.Start then
+            if delay > 0 then
+                obs.timer_add(function()
+                    obs.remove_current_callback()
+                    do_cam_action_start(camera_id, scene_action, action_args)
+                end, delay)
+            else
                 do_cam_action_start(camera_id, scene_action, action_args)
-            end, delay)
+            end
         else
-            do_cam_action_start(camera_id, scene_action, action_args)
+            if not camera_active_in_scene(true, camera_id) and (active == camera_action_active.Program or
+                not camera_active_in_scene(false, camera_id)) then
+                do_cam_action_stop(camera_id, scene_action, action_args)
+            end
         end
     else
-        if not camera_active_in_scene(true, camera_id) and (active == action_active.Program or
-            not camera_active_in_scene(false, camera_id)) then
-            do_cam_action_stop(camera_id, scene_action, action_args)
-        end
+        log("Suppressed action for cam %d action %d", camera_id, scene_action)
     end
 end
 
@@ -574,7 +617,8 @@ local function fe_callback(event, data)
                                 local do_action = false
                                 local active = obs.obs_data_get_int(settings, "scene_active")
 
-                                if (active == action_active.Preview) or (active == action_active.Always) then
+                                if (active == camera_action_active.Preview) or
+                                   (active == camera_action_active.Always) then
                                     do_action = true
 
                                     local preview_exclusive = obs.obs_data_get_bool(settings, "preview_exclusive")
@@ -591,7 +635,7 @@ local function fe_callback(event, data)
 
                                 if do_action then
                                     log("Preview source '%s'", source_name or "?")
-                                    do_cam_scene_action(settings, true)
+                                    do_cam_scene_action(settings, scene_action_at.Start)
                                 end
                             end
 
@@ -620,13 +664,13 @@ local function source_signal_handler(calldata, signal)
 
     local do_action = false
     local active = obs.obs_data_get_int(settings, "scene_active")
-    if (active == action_active.Program) or (active == action_active.Always) then
+    if (active == camera_action_active.Program) or (active == camera_action_active.Always) then
         do_action = true
     end
 
     if do_action then
-        if signal.activate then do_cam_scene_action(settings, true) end
-        if signal.deactivate or signal.hide then do_cam_scene_action(settings, false) end
+        if signal.activate then do_cam_scene_action(settings, scene_action_at.Start) end
+        if signal.deactivate or signal.hide then do_cam_scene_action(settings, scene_action_at.Stop) end
     end
 
     obs.obs_data_release(settings)
@@ -668,12 +712,12 @@ plugin_def.get_properties = function(data)
 
     local prop_action = obs.obs_properties_add_list(props, "scene_action", "Action", obs.OBS_COMBO_TYPE_LIST,
         obs.OBS_COMBO_FORMAT_INT)
-    obs.obs_property_list_add_int(prop_action, "Camera Off", actions.Camera_Off)
-    obs.obs_property_list_add_int(prop_action, "Camera On", actions.Camera_On)
-    obs.obs_property_list_add_int(prop_action, "Preset Recall", actions.Preset_Recal)
-    obs.obs_property_list_add_int(prop_action, "Pan/Tilt", actions.PanTilt)
-    obs.obs_property_list_add_int(prop_action, "Zoom In", actions.Zoom_In)
-    obs.obs_property_list_add_int(prop_action, "Zoom Out", actions.Zoom_Out)
+    obs.obs_property_list_add_int(prop_action, "Camera Off", camera_actions.Camera_Off)
+    obs.obs_property_list_add_int(prop_action, "Camera On", camera_actions.Camera_On)
+    obs.obs_property_list_add_int(prop_action, "Preset Recall", camera_actions.Preset_Recal)
+    obs.obs_property_list_add_int(prop_action, "Pan/Tilt", camera_actions.PanTilt)
+    obs.obs_property_list_add_int(prop_action, "Zoom In", camera_actions.Zoom_In)
+    obs.obs_property_list_add_int(prop_action, "Zoom Out", camera_actions.Zoom_Out)
 
     for camera_id = 1, num_cameras do
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
@@ -732,9 +776,9 @@ plugin_def.get_properties = function(data)
 
     local prop_active = obs.obs_properties_add_list(props, "scene_active", "Action Active", obs.OBS_COMBO_TYPE_LIST,
         obs.OBS_COMBO_FORMAT_INT)
-    obs.obs_property_list_add_int(prop_active, "On Program", action_active.Program)
-    obs.obs_property_list_add_int(prop_active, "On Preview", action_active.Preview)
-    obs.obs_property_list_add_int(prop_active, "Always", action_active.Always)
+    obs.obs_property_list_add_int(prop_active, "On Program", camera_action_active.Program)
+    obs.obs_property_list_add_int(prop_active, "On Preview", camera_action_active.Preview)
+    obs.obs_property_list_add_int(prop_active, "Always", camera_action_active.Always)
 
     obs.obs_properties_add_bool(props, "preview_exclusive",
         "Run action on preview only when the camera is not active on program")
