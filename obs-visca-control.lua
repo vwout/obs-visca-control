@@ -125,6 +125,8 @@ local function prop_presets_validate(props, property, settings)
             if (preset_name == nil) or (preset_id == nil) then
                 print("Warning: preset '" .. preset_value .. "' has an unsupported syntax and cannot be used.")
             end
+
+            obs.obs_data_release(preset)
         end
     end
 
@@ -752,6 +754,8 @@ plugin_def.get_properties = function(data)
                         first_preset = false
                     end
                 end
+		
+                obs.obs_data_release(preset)
             end
         end
 
