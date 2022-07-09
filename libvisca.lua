@@ -311,10 +311,10 @@ function Visca.Message()
                 end
             end
 
-            if (bit.band(self.payload[1], 0xF0) == 0x80) then
+            if (bit.band(self.payload[1] or 0, 0xF0) == 0x80) then
                 -- command or inquiry
                 self.message.command = message_payload_command().from_payload(self.payload)
-            elseif (bit.band(self.payload[1], 0xF0) == 0x90) then
+            elseif (bit.band(self.payload[1] or 0, 0xF0) == 0x90) then
                 -- reply
                 self.message.reply = message_payload_reply().from_payload(self.payload)
             end
@@ -401,7 +401,7 @@ function Visca.Message()
         else
             print(string.format('%sPayload:         %s',
                                 prefix or '',
-                                self.payload))
+                                tostring(self.payload)))
             for k,v in pairs(self.payload) do
                 print(string.format('%sPayload:         - byte %02X: 0x%02X',
                                     prefix or '',
