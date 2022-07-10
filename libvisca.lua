@@ -557,12 +557,6 @@ function Visca.connect(address, port)
         end
     end
 
-    function connection.await_ack_for(message)
-    end
-
-    function connection.await_completion_for(message)
-    end
-
     function connection.Cam_Focus_Mode(mode)
         if has_value(Visca.Focus_modes, mode) then
             local msg = Visca.Message()
