@@ -538,6 +538,25 @@ function Visca.connect(address, port)
         end
     end
 
+    function connection.receive()
+        local sock = connection.sock
+        if sock ~= nil then
+            local data, err, num = sock:receive_from(connection.address, 32)
+            if data then
+                local msg = Visca.Message()
+                msg.from_data(data)
+                if Visca.debug then
+                    print(string.format("Received %s", msg.as_string(connection.mode)))
+                end
+                return msg
+            else
+                return nil, err, num
+            end
+        else
+            return nil, "No connection", 0
+        end
+    end
+
     function connection.await_ack_for(message)
     end
 
