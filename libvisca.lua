@@ -33,10 +33,14 @@ Visca.payload_type_names = {
 }
 
 Visca.packet_consts = {
-    req_addr_base = 0x80,
-    command       = 0x01,
-    inquiry       = 0x09,
-    terminator    = 0xFF
+    req_addr_base    = 0x80,
+    command          = 0x01,
+    inquiry          = 0x09,
+    reply_ack        = 0x40,
+    reply_completion = 0x50,
+    reply_error      = 0x60,
+    reply            = 0x90,
+    terminator       = 0xFF
 }
 
 Visca.error_type_names = {
@@ -168,9 +172,10 @@ Visca.limits = {
 }
 
 -- A Visca message is binary data with a message header (8 bytes) and payload (1 to 16 bytes).
+-- mode=generic uses this header, mode=PTZoptics skips this header
 --
 -- Byte:                      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
--- Payload (byte 0-1):        |
+-- Payload type (byte 0-1):   |
 -- Payload length (byte 2-3):       |
 -- Sequence number (byte 4-7):            |
 -- Payload (byte 8 - max 23):                         |
@@ -216,11 +221,15 @@ function Visca.Message()
         end
 
         function _self.is_command()
-            return _self.command_inquiry == 0x01
+            return _self.command_inquiry == Visca.packet_consts.command
         end
 
         function _self.is_inquiry()
-            return _self.command_inquiry == 0x09
+            return _self.command_inquiry == Visca.packet_consts.inquiry
+        end
+
+        function _self.is_reply()
+            return _self.command_inquiry == Visca.packet_consts.reply
         end
 
         function _self.as_string()
@@ -256,33 +265,62 @@ function Visca.Message()
 
     local function message_payload_reply()
         local _self = {
-            msg_type   = 0x00,
-            error_type = 0x00
+            reply_type    = 0x00,
+            socket_number = 0,
+            error_type    = 0x00,
+            arguments     = {}
         }
 
         function _self.from_payload(payload)
-            _self.msg_type   = payload[2]
-            _self.error_type = payload[3] or 0
-            return self
+            _self.reply_type    = bit.band(payload[2], 0xF0)
+            _self.socket_number = bit.band(payload[2], 0x0F)
+
+            if _self.is_error() then
+                _self.error_type = payload[3] or 0
+            else
+                for i = 3, #payload do
+                    if not ((i == #payload) and (payload[i] == Visca.packet_consts.terminator)) then
+                        table.insert(_self.arguments, payload[i])
+                    end
+                end
+            end
+
+            return _self
         end
 
         function _self.is_ack()
-            return bit.band(_self.msg_type, 0xF0) == 0x40
+            return _self.reply_type == Visca.packet_consts.reply_ack
         end
 
         function _self.is_completion()
-            return bit.band(_self.msg_type, 0xF0) == 0x50
+            return _self.reply_type == Visca.packet_consts.reply_completion
+        end
+
+        function _self.is_error()
+            return _self.reply_type == Visca.packet_consts.reply_error
         end
 
         function _self.as_string()
             if _self.is_ack() then
                 return 'Acknowledge'
             elseif _self.is_completion() then
-                return 'Completion'
+                if #_self.arguments > 0 then
+                    local str_a = {}
+                    for b = 1, #_self.arguments do
+                        table.insert(str_a, string.format('%02X', _self.arguments[b]))
+                    end
+
+                    return 'Completion, inquiry: ' .. table.concat(str_a, ' ')
+                else
+                    return 'Completion, command'
+                end
+            elseif _self.is_error() then
+                return string.format('Error on socket %d: %s (%02x)',
+                                     _self.socket_number,
+                                     Visca.error_type_names[_self.error_type] or 'Unknown',
+                                     _self.error_type)
             else
-                return string.format('Error on socket %d: %s',
-                                     bit.band(_self.msg_type, 0x0F),
-                                     Visca.error_type_names[_self.error_type] or 'Unknown')
+                return 'Unknown'
             end
         end
 
@@ -297,12 +335,20 @@ function Visca.Message()
                 self.payload_type = string.byte(data, 1) * 256 + string.byte(data, 2)
                 self.payload_size = string.byte(data, 3) * 256 + string.byte(data, 4)
                 self.seq_nr       = string.byte(data, 5) * 2^24 +
-                                    string.byte(data, 6) * 2*16 +
-                                    string.byte(data, 7) * 2*8 +
+                                    string.byte(data, 6) * 2^16 +
+                                    string.byte(data, 7) * 2^8 +
                                     string.byte(data, 8)
 
                 for b = 1, self.payload_size do
-                    table.insert(self.payload, string.byte(data, 8 + b))
+                    if 8+b <= message_length then
+                        table.insert(self.payload, string.byte(data, 8 + b))
+                    else
+                        if self.payload_size > #self.payload then
+                            self.payload_size = #self.payload
+                        end
+                        print(string.format("Ignoring byte %d, payload index beyond message length %d",
+                                            8+b, message_length))
+                    end
                 end
             elseif message_length >= 1 and message_length <= 16 then
                 self.payload_size = message_length
