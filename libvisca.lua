@@ -63,9 +63,9 @@ Visca.categories = {
 }
 Visca.category_names = {
     [Visca.categories.interface]    = "Interface",
-    [Visca.categories.camera]       = "Exposure/Focus/Camera",
-    [Visca.categories.exposure]     = "Exposure/Focus/Camera",
-    [Visca.categories.focus]        = "Exposure/Focus/Camera",
+    [Visca.categories.camera]       = "Exposure/Focus/Camera/Zoom",
+    [Visca.categories.exposure]     = "Exposure/Focus/Camera/Zoom",
+    [Visca.categories.focus]        = "Exposure/Focus/Camera/Zoom",
     [Visca.categories.exposure_ext] = "Exposure",
     [Visca.categories.pan_tilter]   = "Pan/Tilt",
     [Visca.categories.camera_ext]   = "Exposure/Camera",
@@ -74,13 +74,15 @@ Visca.category_names = {
 Visca.commands = {
     power                   = 0x00,
     pantilt_drive           = 0x01,
+    pantilt_absolute        = 0x02,
     pantilt_home            = 0x04,
     pantilt_reset           = 0x05,
     zoom                    = 0x07,
     focus                   = 0x08,
     exposure_gain           = 0x0C,
+    pantilt_position        = 0x12,
     preset                  = 0x3F,
-    zoom_to                 = 0x47,
+    zoom_direct             = 0x47,
     focus_direct            = 0x48,
     exposure_auto           = 0x49,
     exposure_shutter_direct = 0x4A,
@@ -89,14 +91,16 @@ Visca.commands = {
 }
 Visca.command_names = {
     [Visca.commands.power]                   = "Power",
-    [Visca.commands.pantilt_drive]           = "Pan/Tilt",
+    [Visca.commands.pantilt_drive]           = "Pan/Tilt (Direction)",
+    [Visca.commands.pantilt_absolute]        = "Pan/Tilt (Absolute)",
     [Visca.commands.pantilt_home]            = "Pan/Tilt (Home)",
     [Visca.commands.pantilt_reset]           = "Pan/Tilt (Reset)",
     [Visca.commands.zoom]                    = "Zoom",
     [Visca.commands.focus]                   = "Focus",
     [Visca.commands.exposure_gain]           = "Gain",
+    [Visca.commands.pantilt_position]        = "Pan/Tilt (Position)",
     [Visca.commands.preset]                  = "Preset",
-    [Visca.commands.zoom_to]                 = "Zoom (to)",
+    [Visca.commands.zoom_direct]             = "Zoom (Direct)",
     [Visca.commands.focus_direct]            = "Focus (Direct)",
     [Visca.commands.exposure_auto]           = "Auto Exposure",
     [Visca.commands.exposure_iris_direct]    = "Iris Absolute",
@@ -163,6 +167,10 @@ Visca.limits = {
     PAN_MAX_SPEED   = 0x18,
     FOCUS_MIN_SPEED = 0x00,
     FOCUS_MAX_SPEED = 0x07,
+    PAN_MIN_VALIE   = 0x00000,
+    PAN_MAX_VALUE   = 0xFFFFF,
+    TILT_MIN_VALUE  = 0x0000,
+    TILT_MAX_VALUE  = 0xFFFF,
     TILT_MIN_SPEED  = 0x01,
     TILT_MAX_SPEED  = 0x18,
     ZOOM_MIN_SPEED  = 0x00,
@@ -693,6 +701,35 @@ function Visca.connect(address, port)
         end
     end
 
+    function connection.Cam_PanTilt_Absolute(speed, pan, tilt)
+        speed = math.min(math.max(speed or 1, Visca.limits.PAN_MIN_SPEED), Visca.limits.PAN_MAX_SPEED)
+        pan = math.min(math.max(pan or 1, Visca.limits.PAN_MIN_VALIE), Visca.limits.PAN_MAX_VALUE)
+        tilt = math.min(math.max(tilt or 1, Visca.limits.TILT_MIN_VALUE), Visca.limits.TILT_MAX_VALUE)
+
+        local msg = Visca.Message()
+        msg.payload_type = Visca.payload_types.visca_command
+        msg.payload = {
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.command,
+                Visca.categories.pan_tilter,
+                Visca.commands.pantilt_absolute,
+                speed,
+                0x00,  -- According to Sony spec it's always zero. Does this set tilt speed?
+                bit.band(bit.rshift(pan, 16), 0x0F),
+                bit.band(bit.rshift(pan, 12), 0x0F),
+                bit.band(bit.rshift(pan, 8), 0x0F),
+                bit.band(bit.rshift(pan, 4), 0x0F),
+                bit.band(pan, 0x0F),
+                bit.band(bit.rshift(tilt, 12), 0x0F),
+                bit.band(bit.rshift(tilt, 8), 0x0F),
+                bit.band(bit.rshift(tilt, 4), 0x0F),
+                bit.band(tilt, 0x0F),
+                Visca.packet_consts.terminator
+            }
+
+        return connection.send(msg)
+    end
+
     function connection.Cam_PanTilt_Home()
         local msg = Visca.Message()
         msg.payload_type = Visca.payload_types.visca_command
@@ -715,6 +752,20 @@ function Visca.connect(address, port)
                 Visca.packet_consts.command,
                 Visca.categories.pan_tilter,
                 Visca.commands.pantilt_reset,
+                Visca.packet_consts.terminator
+            }
+
+        return connection.send(msg)
+    end
+
+    function connection.Cam_Pantilt_Position_Inquiry()
+        local msg = Visca.Message()
+        msg.payload_type = Visca.payload_types.visca_inquiry
+        msg.payload = {
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.inquiry,
+                Visca.categories.pan_tilter,
+                Visca.commands.pantilt_position,
                 Visca.packet_consts.terminator
             }
 
@@ -785,11 +836,25 @@ function Visca.connect(address, port)
                 Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
                 Visca.packet_consts.command,
                 Visca.categories.camera,
-                Visca.commands.zoom_to,
+                Visca.commands.zoom_direct,
                 bit.band(bit.rshift(zoom, 12), 0x0F),
                 bit.band(bit.rshift(zoom, 8), 0x0F),
                 bit.band(bit.rshift(zoom, 4), 0x0F),
                 bit.band(zoom, 0x0F),
+                Visca.packet_consts.terminator
+            }
+
+        return connection.send(msg)
+    end
+
+    function connection.Cam_Zoom_Position_Inquiry()
+        local msg = Visca.Message()
+        msg.payload_type = Visca.payload_types.visca_inquiry
+        msg.payload = {
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.inquiry,
+                Visca.categories.camera,
+                Visca.commands.zoom_direct,
                 Visca.packet_consts.terminator
             }
 
