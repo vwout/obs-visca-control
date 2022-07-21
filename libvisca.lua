@@ -80,7 +80,6 @@ Visca.commands = {
     zoom                    = 0x07,
     focus                   = 0x08,
     exposure_gain           = 0x0C,
-    pantilt_position        = 0x12,
     preset                  = 0x3F,
     zoom_direct             = 0x47,
     focus_direct            = 0x48,
@@ -89,6 +88,7 @@ Visca.commands = {
     exposure_iris_direct    = 0x4B,
     exposure_gain_direct    = 0x4B,
 }
+
 Visca.command_names = {
     [Visca.commands.power]                   = "Power",
     [Visca.commands.pantilt_drive]           = "Pan/Tilt (Direction)",
@@ -98,7 +98,6 @@ Visca.command_names = {
     [Visca.commands.zoom]                    = "Zoom",
     [Visca.commands.focus]                   = "Focus",
     [Visca.commands.exposure_gain]           = "Gain",
-    [Visca.commands.pantilt_position]        = "Pan/Tilt (Position)",
     [Visca.commands.preset]                  = "Preset",
     [Visca.commands.zoom_direct]             = "Zoom (Direct)",
     [Visca.commands.focus_direct]            = "Focus (Direct)",
@@ -117,6 +116,18 @@ Visca.command_arguments = {
     focus_near_std   = 0x03,
     focus_far_var    = 0x20,
     focus_near_var   = 0x30,
+}
+
+Visca.inquiry_commands = {
+    software_version = 0x02,
+    pantilt_position = 0x12,
+    zoom_position    = 0x47,
+}
+
+Visca.inquiry_command_names = {
+    [Visca.inquiry_commands.software_version] = "Software Version",
+    [Visca.inquiry_commands.pantilt_position] = "Pan/Tilt (Position)",
+    [Visca.inquiry_commands.zoom_position]    = "Zoom (Position)",
 }
 
 local function ca_key(command, argument)
@@ -765,7 +776,7 @@ function Visca.connect(address, port)
                 Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
                 Visca.packet_consts.inquiry,
                 Visca.categories.pan_tilter,
-                Visca.commands.pantilt_position,
+                Visca.inquiry_commands.pantilt_position,
                 Visca.packet_consts.terminator
             }
 
@@ -854,7 +865,21 @@ function Visca.connect(address, port)
                 Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
                 Visca.packet_consts.inquiry,
                 Visca.categories.camera,
-                Visca.commands.zoom_direct,
+                Visca.inquiry_commands.zoom_position,
+                Visca.packet_consts.terminator
+            }
+
+        return connection.send(msg)
+    end
+
+    function connection.Cam_Software_Version_Inquiry()
+        local msg = Visca.Message()
+        msg.payload_type = Visca.payload_types.visca_inquiry
+        msg.payload = {
+                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+                Visca.packet_consts.inquiry,
+                Visca.categories.interface,
+                Visca.inquiry_commands.software_version,
                 Visca.packet_consts.terminator
             }
 
