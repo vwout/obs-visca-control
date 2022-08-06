@@ -47,6 +47,7 @@ local camera_actions = {
     Focus_Far = 9,
     Focus_Refocus = 10,
     Focus_Infinity = 11,
+    PanTiltZoom_Position = 12,
 }
 
 local camera_action_active = {
@@ -78,7 +79,7 @@ local function log(fmt, ...)
             end
         end
 
-        print(string.format("%s (%d): %s", func, line, string.format(fmt, unpack(args))))
+        print(string.format("%s (%d): %s", func, line, string.format(fmt, unpack(args or {}))))
     end
 end
 
@@ -233,10 +234,17 @@ local function close_visca_connection(camera_id)
     end
 end
 
-local function open_visca_connection(camera_id, camera_address, camera_port, camera_mode)
+local function open_visca_connection(camera_id)
     local connection = plugin_data.connections[camera_id]
 
     if connection == nil then
+        local cam_prop_prefix = string.format("cam_%d_", camera_id)
+        local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
+        local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
+        local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
+
+        log("Setup new connection for cam %d at %s:%d", camera_id, camera_address, camera_port)
+
         local new_connection, connection_error = Visca.connect(camera_address, camera_port)
         if new_connection then
             connection = new_connection
@@ -259,21 +267,16 @@ local function cb_plugin_hotkey(pressed, hotkey_data)
 end
 
 local function do_cam_action_start(camera_id, camera_action, action_args)
-    local cam_prop_prefix = string.format("cam_%d_", camera_id)
-    local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
-    local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
-    local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
     action_args = action_args or {}
-
-    log("Start cam %d @%s:%d action %d (args %s)", camera_id, camera_address, camera_port, camera_action, action_args)
 
     -- Force close connection before sending On-command to prevent usage of a dead connection
     if camera_action == camera_actions.Camera_On then
         close_visca_connection(camera_id)
     end
 
-    local connection = open_visca_connection(camera_id, camera_address, camera_port, camera_mode)
+    log("Start cam %d action %d (args %s)", camera_id, camera_action, action_args)
 
+    local connection = open_visca_connection(camera_id)
     if connection then
         if camera_action == camera_actions.Camera_Off then
             connection.Cam_Power(false)
@@ -308,20 +311,23 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
         elseif camera_action == camera_actions.Focus_Far then
             connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
             connection.Cam_Focus_Far()
+        elseif camera_action == camera_actions.PanTiltZoom_Position then
+            if action_args.pan_position and action_args.tilt_position then
+                connection.Cam_PanTilt_Absolute(action_args.speed or 1,
+                    action_args.pan_position, action_args.tilt_position)
+            end
+            if action_args.zoom_position then
+                connection.Cam_Zoom_To(action_args.zoom_position)
+            end
         end
     end
 end
 
 local function do_cam_action_stop(camera_id, camera_action, action_args)
-    local cam_prop_prefix = string.format("cam_%d_", camera_id)
-    local camera_address = obs.obs_data_get_string(plugin_settings, cam_prop_prefix .. "address")
-    local camera_port = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "port")
-    local camera_mode = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "mode")
     action_args = action_args or {}
 
-    log("Stop cam %d @%s action %d (arg %s)", camera_id, camera_address, camera_action, action_args)
-    local connection = open_visca_connection(camera_id, camera_address, camera_port, camera_mode)
-
+    log("Stop cam %d action %d (arg %s)", camera_id, camera_action, action_args)
+    local connection = open_visca_connection(camera_id)
     if connection then
         if camera_action == camera_actions.PanTilt then
             connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
@@ -510,9 +516,13 @@ local function cb_camera_action_changed(props, property, data)
         changed = set_property_visibility(props, string.format("scene_cam_%d_preset", camera_id), visible) or changed
     end
 
+    changed = set_property_visibility(props, "scene_ptz_position",
+        scene_action == camera_actions.PanTiltZoom_Position) or changed
+    changed = set_property_visibility(props, "scene_get_ptz_position",
+        scene_action == camera_actions.PanTiltZoom_Position) or changed
     changed = set_property_visibility(props, "scene_direction", scene_action == camera_actions.PanTilt) or changed
     local need_speed = (scene_action == camera_actions.PanTilt) or (scene_action == camera_actions.Zoom_In) or
-        (scene_action == camera_actions.Zoom_Out)
+        (scene_action == camera_actions.Zoom_Out) or (scene_action == camera_actions.PanTiltZoom_Position)
     changed = set_property_visibility(props, "scene_speed", need_speed) or changed
 
     return changed
@@ -567,11 +577,28 @@ local function do_cam_scene_action(settings, action_at)
     local cam_prop_prefix = string.format("cam_%d_", camera_id)
 
     if not plugin_data.suppress_scene_actions then
+        local scene_ptz_position = obs.obs_data_get_string(settings, "scene_ptz_position")
+        local pan_position, tilt_position, zoom_position
+        if scene_ptz_position and (scene_ptz_position ~= '') then
+            local ptz_values = {}
+
+            -- Capture Z,P,T from 'Zoom-value (hex-val), Pan-value (hex-val), Tilt-value (hex-val))
+            for val in scene_ptz_position:gmatch("%((%x+)%)") do
+                table.insert(ptz_values, val)
+            end
+
+            pan_position, tilt_position, zoom_position = unpack(ptz_values)
+        end
+
         local action_args = {
             preset = obs.obs_data_get_int(settings, "scene_" .. cam_prop_prefix .. "preset"),
             direction = obs.obs_data_get_int(settings, "scene_direction"),
-            speed = obs.obs_data_get_double(settings, "scene_speed")
+            speed = obs.obs_data_get_double(settings, "scene_speed"),
+            pan_position = pan_position,
+            tilt_position = tilt_position,
+            zoom_position = zoom_position,
         }
+
         local active = obs.obs_data_get_int(settings, "scene_active")
         local delay = obs.obs_data_get_int(settings, "scene_action_delay") or 0
 
@@ -678,6 +705,35 @@ local function source_signal_handler(calldata, signal)
     obs.obs_data_release(settings)
 end
 
+local function cb_scene_get_ptz_position(scene_props, btn_prop)
+    local current_scene = obs.obs_frontend_get_current_preview_scene()
+    if current_scene ~= nil then
+        local scene = obs.obs_scene_from_source(current_scene)
+        local scene_items = obs.obs_scene_enum_items(scene)
+        if scene_items ~= nil then
+            for _, scene_item in pairs(scene_items) do
+                local scene_item_source = obs.obs_sceneitem_get_source(scene_item)
+                local scene_item_source_id = obs.obs_source_get_unversioned_id(scene_item_source)
+                if scene_item_source_id == plugin_def.id then
+                    local item_source_settings = obs.obs_source_get_settings(scene_item_source)
+                    if item_source_settings then
+                        local camera_id = obs.obs_data_get_int(item_source_settings, "scene_camera")
+                        local connection = open_visca_connection(camera_id)
+                        if connection then
+                            connection.Cam_Pantilt_Position_Inquiry()
+                            connection.Cam_Zoom_Position_Inquiry()
+                        end
+
+                        obs.obs_data_release(item_source_settings)
+                    end
+                end
+            end
+
+            obs.sceneitem_list_release(scene_items)
+        end
+    end
+end
+
 plugin_def.get_name = function()
     return plugin_info.name
 end
@@ -708,18 +764,44 @@ end
 plugin_def.get_properties = function(data)
     local props = obs.obs_properties_create()
 
+    local action_props = obs.obs_properties_create()
     local num_cameras = obs.obs_data_get_int(plugin_settings, "num_cameras")
-    local prop_camera = obs.obs_properties_add_list(props, "scene_camera", "Camera", obs.OBS_COMBO_TYPE_LIST,
+    local prop_camera = obs.obs_properties_add_list(action_props, "scene_camera", "Camera", obs.OBS_COMBO_TYPE_LIST,
         obs.OBS_COMBO_FORMAT_INT)
 
-    local prop_action = obs.obs_properties_add_list(props, "scene_action", "Action", obs.OBS_COMBO_TYPE_LIST,
+    local prop_action = obs.obs_properties_add_list(action_props, "scene_action", "Action", obs.OBS_COMBO_TYPE_LIST,
         obs.OBS_COMBO_FORMAT_INT)
     obs.obs_property_list_add_int(prop_action, "Camera Off", camera_actions.Camera_Off)
     obs.obs_property_list_add_int(prop_action, "Camera On", camera_actions.Camera_On)
     obs.obs_property_list_add_int(prop_action, "Preset Recall", camera_actions.Preset_Recal)
-    obs.obs_property_list_add_int(prop_action, "Pan/Tilt", camera_actions.PanTilt)
+    obs.obs_property_list_add_int(prop_action, "Pan/Tilt/Zoom Absolute position", camera_actions.PanTiltZoom_Position)
+    obs.obs_property_list_add_int(prop_action, "Pan/Tilt Direction", camera_actions.PanTilt)
     obs.obs_property_list_add_int(prop_action, "Zoom In", camera_actions.Zoom_In)
     obs.obs_property_list_add_int(prop_action, "Zoom Out", camera_actions.Zoom_Out)
+    obs.obs_properties_add_group(props, "scene_action_group", "Action", obs.OBS_GROUP_NORMAL, action_props)
+
+    -- Action configuration
+    local direction_names = {}
+    for direction_name in pairs(Visca.PanTilt_directions) do
+        table.insert(direction_names, direction_name)
+    end
+    table.sort(direction_names)
+
+    local config_props = obs.obs_properties_create()
+    local prop_pantilt_direction = obs.obs_properties_add_list(config_props, "scene_direction", "Animation Direction",
+        obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+    obs.obs_property_list_add_int(prop_pantilt_direction, "None", 0)
+    for _, direction_name in ipairs(direction_names) do
+        obs.obs_property_list_add_int(prop_pantilt_direction, direction_name:gsub("^%l", string.upper),
+            Visca.PanTilt_directions[direction_name])
+    end
+    obs.obs_properties_add_int_slider(config_props, "scene_speed", "Animation Speed",
+        Visca.limits.PAN_MIN_SPEED, Visca.limits.PAN_MAX_SPEED, 1)
+    local ptz_position = obs.obs_properties_add_text(config_props, "scene_ptz_position", "Position",
+        obs.OBS_TEXT_DEFAULT)
+    obs.obs_property_set_enabled(ptz_position, false)
+    obs.obs_properties_add_button(config_props, "scene_get_ptz_position", "Retrieve current position",
+        cb_scene_get_ptz_position)
 
     for camera_id = 1, num_cameras do
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
@@ -731,7 +813,7 @@ plugin_def.get_properties = function(data)
         end
         obs.obs_property_list_add_int(prop_camera, cam_name, camera_id)
 
-        local prop_presets = obs.obs_properties_add_list(props, "scene_" .. cam_prop_prefix .. "preset",
+        local prop_presets = obs.obs_properties_add_list(config_props, "scene_" .. cam_prop_prefix .. "preset",
             "Presets" .. cam_name_suffix, obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
         local presets = obs.obs_data_get_array(plugin_settings, cam_prop_prefix .. "presets")
         local num_presets = obs.obs_data_array_count(presets)
@@ -754,7 +836,7 @@ plugin_def.get_properties = function(data)
                         first_preset = false
                     end
                 end
-		
+
                 obs.obs_data_release(preset)
             end
         end
@@ -762,32 +844,19 @@ plugin_def.get_properties = function(data)
         obs.obs_data_array_release(presets)
     end
 
-    local direction_names = {}
-    for direction_name in pairs(Visca.PanTilt_directions) do
-        table.insert(direction_names, direction_name)
-    end
-    table.sort(direction_names)
+    obs.obs_properties_add_group(props, "scene_config_grp", "Action configuration", obs.OBS_GROUP_NORMAL, config_props)
 
-    local prop_pantilt_direction = obs.obs_properties_add_list(props, "scene_direction", "Animation Direction",
+    -- Action options
+    local option_props = obs.obs_properties_create()
+    local prop_active = obs.obs_properties_add_list(option_props, "scene_active", "Action Active",
         obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
-    obs.obs_property_list_add_int(prop_pantilt_direction, "None", 0)
-    for _, direction_name in ipairs(direction_names) do
-        obs.obs_property_list_add_int(prop_pantilt_direction, direction_name:gsub("^%l", string.upper),
-            Visca.PanTilt_directions[direction_name])
-    end
-    obs.obs_properties_add_int_slider(props, "scene_speed", "Animation Speed",
-        Visca.limits.PAN_MIN_SPEED, Visca.limits.PAN_MAX_SPEED, 1)
-
-    local prop_active = obs.obs_properties_add_list(props, "scene_active", "Action Active", obs.OBS_COMBO_TYPE_LIST,
-        obs.OBS_COMBO_FORMAT_INT)
     obs.obs_property_list_add_int(prop_active, "On Program", camera_action_active.Program)
     obs.obs_property_list_add_int(prop_active, "On Preview", camera_action_active.Preview)
     obs.obs_property_list_add_int(prop_active, "Always", camera_action_active.Always)
-
-    obs.obs_properties_add_bool(props, "preview_exclusive",
+    obs.obs_properties_add_bool(option_props, "preview_exclusive",
         "Run action on preview only when the camera is not active on program")
-
-    obs.obs_properties_add_int(props, "scene_action_delay", "Delay Action (ms)", 0, 777333, 1)
+    obs.obs_properties_add_int(option_props, "scene_action_delay", "Delay Action (ms)", 0, 777333, 1)
+    obs.obs_properties_add_group(props, "scene_option_grp", "Action options", obs.OBS_GROUP_NORMAL, option_props)
 
     --obs.obs_properties_add_button(props, "run_action", "Perform action now", cb_run_action)
 
