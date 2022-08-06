@@ -621,6 +621,58 @@ function Visca.connect(address, port)
         end
     end
 
+    function connection._register_callback(callback_type, id, callback)
+        if type(connection.callbacks[callback_type]) ~= 'table' then
+            connection.callbacks[callback_type] = {}
+        end
+        connection.callbacks[callback_type][id] = callback
+    end
+
+    function connection._unregister_callback(callback_type, id)
+        if connection.callbacks[callback_type] ~= nil then
+            connection.callbacks[callback_type][id] = nil
+        end
+    end
+
+    function connection._exec_callback(callback_type, t, ...)
+        if connection.callbacks[callback_type] ~= nil then
+            for id,callback in pairs(connection.callbacks[callback_type]) do
+                if type(callback) == 'function' then
+                    local status,result_or_error = pcall(callback, t, unpack(arg or {}))
+                    if not status then
+                        print(string.format("Callback %s for %s failed: %s", id, callback_type, result_or_error))
+                    end
+                end
+            end
+        end
+    end
+
+    function connection.register_on_ack_callback(id, callback)
+        connection._register_callback('ack', id, callback)
+    end
+    function connection.register_on_completion_callback(id, callback)
+        connection._register_callback('completion', id, callback)
+    end
+    function connection.register_on_error_callback(id, callback)
+        connection._register_callback('error', id, callback)
+    end
+    function connection.register_on_timeout_callback(id, callback)
+        connection._register_callback('timeout', id, callback)
+    end
+
+    function connection.unregister_on_ack_callback(id)
+        connection._unregister_callback('ack', id)
+    end
+    function connection.unregister_on_completion_callback(id)
+        connection._unregister_callback('completion', id)
+    end
+    function connection.unregister_on_error_callback(id)
+        connection._unregister_callback('error', id)
+    end
+    function connection.unregister_on_timeout_callback(id)
+        connection._unregister_callback('timeout', id)
+    end
+
     function connection._transmit(message)
         local data_to_send = message.to_data(connection.mode)
         local sock = connection.sock
@@ -732,7 +784,15 @@ function Visca.connect(address, port)
 
                 if msg.message.reply then
                     local transmission = connection._transmissions_add_message(msg)
-                    if not transmission then
+                    if transmission then
+                        if msg.message.reply.is_ack() then
+                            connection._exec_callback('ack', transmission)
+                        elseif msg.message.reply.is_completion() then
+                            connection._exec_callback('completion', transmission)
+                        elseif msg.message.reply.is_error() then
+                            connection._exec_callback('error', transmission)
+                        end
+                    else
                         print(string.format("Warning: Unable to find send message for reply: %s",
                                 msg.as_string(connection.mode)))
                     end
