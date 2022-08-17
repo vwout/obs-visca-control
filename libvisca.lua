@@ -732,6 +732,7 @@ function Visca.connect(address, port)
             end
         end
 
+        local first = true
         for _,t in pairs(connection.transmission_queue) do
             -- Check if the first remaining message still needs transmission
             if t then
@@ -739,7 +740,16 @@ function Visca.connect(address, port)
                     transmit_size, transmit_data = connection._transmit(t.send)
                     t.send_timestamp = obs.os_gettime_ns()
                 end
-                break
+
+                -- When an ack has been received for the first message in the queue,
+                -- but the command is waiting for completion, proceed to the next
+                -- item in the queue for sending.
+                -- Otherwise, stop queue handling and don't send anything (else)
+                if not first or not t.ack_timestamp then
+                    break
+                end
+
+                first = false
             end
         end
 
