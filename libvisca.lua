@@ -193,6 +193,26 @@ Visca.limits = {
     ZOOM_MAX_VALUE  = 0x4000,
 }
 
+Visca.CameraVendor = {
+    [0x0001] = "Sony",
+    [0x0003] = "Everet?",
+}
+Visca.CameraModel = {
+    [0] = {},
+    [0x0001] = {
+        [0x051C] = "BRC-X400",
+        [0x051D] = "BRC-X401",
+        [0x0617] = "SRG-X400",
+        [0x0618] = "SRG-X120",
+        [0x061A] = "SRG-201M2",
+        [0x061B] = "SRG-HD1M2",
+    },
+    [0x0003] = {
+        [0x0002] = "EVZ405N",
+        [0x013B] = "EVP212N",
+    },
+}
+
 -- A Visca message is binary data with a message header (8 bytes) and payload (1 to 16 bytes).
 -- mode=generic uses this header, mode=PTZoptics skips this header
 --

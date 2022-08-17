@@ -21,6 +21,7 @@ local plugin_data = {
     active_scene = nil,
     preview_scene = nil,
     connections = {},
+    reply_data = {},
     hotkeys = {},
     suppress_scene_actions = false,
 }
@@ -152,6 +153,12 @@ local function create_camera_controls(props, camera_id, settings)
                 obs.OBS_TEXT_DEFAULT)
             obs.obs_data_set_default_string(settings, cam_prop_prefix .. "name", cam_name)
         end
+        local prop_version_info = obs.obs_properties_get(props, cam_prop_prefix .. "version_info")
+        if prop_version_info == nil then
+            prop_version_info = obs.obs_properties_add_text(props, cam_prop_prefix .. "version_info",
+                "Version Info" .. cam_name_suffix, obs.OBS_TEXT_DEFAULT)
+            obs.obs_property_set_enabled(prop_version_info, false)
+        end
         local prop_address = obs.obs_properties_get(props, cam_prop_prefix .. "address")
         if prop_address == nil then
             obs.obs_properties_add_text(props, cam_prop_prefix .. "address", "IP Address" .. cam_name_suffix,
@@ -190,7 +197,7 @@ local function prop_set_attrs_values(props, property, settings)
 
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
 
-        local cam_props = { "name", "address", "port", "mode", "presets", "preset_info" }
+        local cam_props = { "name", "version_info", "address", "port", "mode", "presets", "preset_info" }
         for _, cam_prop_name in pairs(cam_props) do
             local cam_prop = obs.obs_properties_get(props, cam_prop_prefix .. cam_prop_name)
             if cam_prop then
@@ -229,6 +236,10 @@ local function close_visca_connection(camera_id)
 
     if connection ~= nil then
         connection.close()
+        connection.unregister_on_ack_callback(camera_id)
+        connection.unregister_on_completion_callback(camera_id)
+        connection.unregister_on_error_callback(camera_id)
+        connection.unregister_on_timeout_callback(camera_id)
         connection = nil
         plugin_data.connections[camera_id] = connection
     end
@@ -251,7 +262,51 @@ local function open_visca_connection(camera_id)
             if camera_mode then
                 connection.set_mode(camera_mode)
             end
+
+            connection.register_on_completion_callback(camera_id, function(t)
+                log("Connection Completion received for camera %d (seq_nr %d)", camera_id, t and t.send.seq_nr or -1)
+
+                local transmission_data = t.inquiry_data()
+                if transmission_data and type(transmission_data) == 'table' then
+                    local reply_data = plugin_data.reply_data[camera_id] or {}
+
+                    for k,v in pairs(transmission_data) do
+                        reply_data[k] = v
+                    end
+
+                    plugin_data.reply_data[camera_id] = reply_data
+
+                    if reply_data.vendor_id or reply_data.model_code or reply_data.rom_version then
+                        local version_info = string.format("Vendor: %s (%04X), Model: %s (%04X), Rom version: %04X",
+                            Visca.CameraVendor[reply_data.vendor_id] or "Unknown",
+                            reply_data.vendor_id or 0,
+                            Visca.CameraModel[reply_data.vendor_id or 0][reply_data.model_code] or "Unknown",
+                            reply_data.model_code or 0,
+                            reply_data.rom_version or 0)
+                        local version_info_setting = string.format("cam_%d_version_info", camera_id)
+                        obs.obs_data_set_string(plugin_settings, version_info_setting, version_info)
+                        log("Set setting %s to %s", version_info_setting, version_info)
+                    end
+
+                    -- TODO: Process ptz values
+                end
+            end)
+
+            if plugin_data.debug then
+                connection.register_on_ack_callback(camera_id, function(t)
+                    log("Connection ACK received for camera %d (seq_nr %d)", camera_id, t and t.send.seq_nr or -1)
+                end)
+                connection.register_on_error_callback(camera_id, function(t)
+                    log("Connection ERROR received for camera %d (seq_nr %d)", camera_id, t and t.send.seq_nr or -1)
+                end)
+                connection.register_on_timeout_callback(camera_id, function(t)
+                    log("Connection Timeout for camera %d (seq_nr %d)", camera_id, t and t.send.seq_nr or -1)
+                end)
+            end
+
             plugin_data.connections[camera_id] = connection
+
+            connection.Cam_Software_Version_Inquiry()
         else
             log(connection_error)
         end
@@ -348,6 +403,27 @@ local function cb_camera_hotkey(pressed, hotkey_data)
         do_cam_action_start(hotkey_data.camera_id, hotkey_data.action, hotkey_data.action_args)
     else
         do_cam_action_stop(hotkey_data.camera_id, hotkey_data.action, hotkey_data.action_args)
+    end
+end
+
+local function handleViscaResponses()
+    for camera_id, connection in pairs(plugin_data.connections) do
+        local success, msg, err, num = pcall(connection.receive)
+        if not success then
+            log("Poll camera %d failed: %s", camera_id, msg)
+        else
+            if msg then
+                log("Poll camera %d (%s): %s", camera_id, tostring(connection), msg.as_string(connection.mode))
+                if plugin_data.debug then
+                    msg.dump()
+                end
+            elseif err ~= "timeout" then
+                log("Poll camera %d (%s) failed: %s (%d)", camera_id, tostring(connection), err, num)
+                if num == 22 or num == 10022 then
+                    close_visca_connection(camera_id)
+                end
+            end
+        end
     end
 end
 
@@ -461,6 +537,8 @@ function script_load(settings)
             })
         end
     end
+
+    obs.timer_add(handleViscaResponses, 100)
 end
 
 function script_properties()
