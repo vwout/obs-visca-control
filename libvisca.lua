@@ -330,31 +330,31 @@ function Visca.Message()
                 if inquiry_command == Visca.inquiry_commands.software_version then
                     -- TODO: parse Visca.inquiry_commands.software_version
                     data = {
-                        vendor_id   = bit.lshift(_self.arguments[1], 8) + _self.arguments[2],
-                        model_code  = bit.lshift(_self.arguments[3], 8) + _self.arguments[4],
-                        rom_version = bit.lshift(_self.arguments[5], 8) + _self.arguments[6],
+                        vendor_id   = bit.lshift(_self.arguments[1] or 0, 8) + (_self.arguments[2] or 0),
+                        model_code  = bit.lshift(_self.arguments[3] or 0, 8) + (_self.arguments[4] or 0),
+                        rom_version = bit.lshift(_self.arguments[5] or 0, 8) + (_self.arguments[6] or 0),
                     }
                 end
             elseif category == Visca.categories.camera then
                 if inquiry_command == Visca.inquiry_commands.zoom_position then
                     data = {
-                        position = bit.lshift(bit.band(_self.arguments[1], 0x0F), 12) +
-                                   bit.lshift(bit.band(_self.arguments[2], 0x0F), 8) +
-                                   bit.lshift(bit.band(_self.arguments[3], 0x0F), 4) +
-                                   bit.band(_self.arguments[4], 0x0F),
+                        position = bit.lshift(bit.band(_self.arguments[1] or 0, 0x0F), 12) +
+                                   bit.lshift(bit.band(_self.arguments[2] or 0, 0x0F), 8) +
+                                   bit.lshift(bit.band(_self.arguments[3] or 0, 0x0F), 4) +
+                                   bit.band(_self.arguments[4] or 0, 0x0F),
                     }
                 end
             elseif category == Visca.categories.pan_tilter then
                 if inquiry_command == Visca.inquiry_commands.pantilt_position then
                     data = {
-                        pan  = bit.lshift(bit.band(_self.arguments[1], 0x0F), 12) +
-                               bit.lshift(bit.band(_self.arguments[3], 0x0F), 4) +
-                               bit.lshift(bit.band(_self.arguments[2], 0x0F), 8) +
-                               bit.band(_self.arguments[4], 0x0F),
-                        tilt = bit.lshift(bit.band(_self.arguments[5], 0x0F), 12) +
-                               bit.lshift(bit.band(_self.arguments[6], 0x0F), 8) +
-                               bit.lshift(bit.band(_self.arguments[7], 0x0F), 4) +
-                               bit.band(_self.arguments[8], 0x0F)
+                        pan  = bit.lshift(bit.band(_self.arguments[1] or 0, 0x0F), 12) +
+                               bit.lshift(bit.band(_self.arguments[2] or 0, 0x0F), 8) +
+                               bit.lshift(bit.band(_self.arguments[3] or 0, 0x0F), 4) +
+                               bit.band(_self.arguments[4] or 0, 0x0F),
+                        tilt = bit.lshift(bit.band(_self.arguments[5] or 0, 0x0F), 12) +
+                               bit.lshift(bit.band(_self.arguments[6] or 0, 0x0F), 8) +
+                               bit.lshift(bit.band(_self.arguments[7] or 0, 0x0F), 4) +
+                               bit.band(_self.arguments[8] or 0, 0x0F)
                     }
                 end
             end
@@ -598,7 +598,7 @@ function Visca.connect(address, port)
         end
 
         function transmission.is_inquiry()
-            return transmission.send and transmission.send.is_inquiry() or false
+            return transmission.send and (transmission.send.payload_type == Visca.payload_types.visca_inquiry)
         end
 
         function transmission.inquiry_data()
