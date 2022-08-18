@@ -66,7 +66,7 @@ local function log(fmt, ...)
         local args = {}
         for i, a in ipairs(arg or { ... }) do
             if type(a) == "table" then
-                local kvs = nil
+                local kvs
                 for k, v in pairs(a) do
                     if kvs then
                         kvs = string.format("%s, %s=%s", kvs, k, tostring(v))
@@ -85,8 +85,8 @@ local function log(fmt, ...)
 end
 
 local function parse_preset_value(preset_value)
-    local preset_name = nil
-    local preset_id = nil
+    local preset_name
+    local preset_id
     local regex_patterns = {
         "^(.+)%s*[:=-]%s*(%d+)$",
         "^(%d+)%s*[:=-]%s*(.+)$"
@@ -271,17 +271,17 @@ local function open_visca_connection(camera_id)
             connection.register_on_completion_callback(camera_id, function(t)
                 log("Connection Completion received for camera %d (seq_nr %d)", camera_id, t and t.send.seq_nr or -1)
 
-                local transmission_data = t.inquiry_data()
-                if transmission_data and type(transmission_data) == 'table' then
+                local t_data = t.inquiry_data()
+                if t_data and type(t_data) == 'table' then
                     local reply_data = plugin_data.reply_data[camera_id] or {}
 
-                    for k,v in pairs(transmission_data) do
+                    for k,v in pairs(t_data) do
                         reply_data[k] = v
                     end
 
                     plugin_data.reply_data[camera_id] = reply_data
 
-                    if reply_data.vendor_id or reply_data.model_code or reply_data.rom_version then
+                    if t_data.vendor_id or t_data.model_code or t_data.rom_version then
                         local version_info = string.format("Vendor: %s (%04X), Model: %s (%04X), Firmware: %04X",
                             Visca.CameraVendor[reply_data.vendor_id] or "Unknown",
                             reply_data.vendor_id or 0,
@@ -293,17 +293,23 @@ local function open_visca_connection(camera_id)
                         log("Set setting %s to %s", version_info_setting, version_info)
                     end
 
-                    if reply_data.zoom or reply_data.pan or reply_data.tilt then
+                    if t_data.zoom or t_data.pan or t_data.tilt then
                         local ptz_vals = {}
 
-                        if reply_data.zoom then
-                            table.insert(ptz_vals, string.format("Zoom: %d (%04X)", reply_data.zoom, reply_data.zoom))
-                        end
                         if reply_data.pan then
                             table.insert(ptz_vals, string.format("Pan %d (%04X)", reply_data.pan, reply_data.pan))
+                        else
+                            table.insert(ptz_vals, "Pan: n/a (-)")
                         end
                         if reply_data.tilt then
                             table.insert(ptz_vals, string.format("Tilt: %d (%04X)", reply_data.tilt, reply_data.tilt))
+                        else
+                            table.insert(ptz_vals, "Tilt: n/a (-)")
+                        end
+                        if reply_data.zoom then
+                            table.insert(ptz_vals, string.format("Zoom: %d (%04X)", reply_data.zoom, reply_data.zoom))
+                        else
+                            table.insert(ptz_vals, "Zoom: n/a (-)")
                         end
 
                         local current_scene = obs.obs_frontend_get_current_preview_scene()
