@@ -421,11 +421,11 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
             connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
             connection.Cam_Focus_Far()
         elseif camera_action == camera_actions.PanTiltZoom_Position then
-            if action_args.pan_position and action_args.tilt_position then
+            if action_args.pan_position ~= nil and action_args.tilt_position ~= nil then
                 connection.Cam_PanTilt_Absolute(action_args.speed or 1,
                     action_args.pan_position, action_args.tilt_position)
             end
-            if action_args.zoom_position then
+            if action_args.zoom_position ~= nil then
                 connection.Cam_Zoom_To(action_args.zoom_position)
             end
         end
@@ -714,9 +714,9 @@ local function do_cam_scene_action(settings, action_at)
         if scene_ptz_position and (scene_ptz_position ~= '') then
             local ptz_values = {}
 
-            -- Capture Z,P,T from 'Zoom-value (hex-val), Pan-value (hex-val), Tilt-value (hex-val))
+            -- Capture P,T,Z from 'Pan-value (hex-val), Tilt-value (hex-val), Zoom-value (hex-val)
             for val in scene_ptz_position:gmatch("%((%x+)%)") do
-                table.insert(ptz_values, tonumber(val))
+                table.insert(ptz_values, tonumber(val, 16))
             end
 
             pan_position, tilt_position, zoom_position = unpack(ptz_values)
