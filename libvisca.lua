@@ -348,7 +348,6 @@ function Visca.Message()
 
             if category == Visca.categories.interface then
                 if inquiry_command == Visca.inquiry_commands.software_version then
-                    -- TODO: parse Visca.inquiry_commands.software_version
                     data = {
                         vendor_id   = bit.lshift(_self.arguments[1] or 0, 8) + (_self.arguments[2] or 0),
                         model_code  = bit.lshift(_self.arguments[3] or 0, 8) + (_self.arguments[4] or 0),
@@ -358,10 +357,10 @@ function Visca.Message()
             elseif category == Visca.categories.camera then
                 if inquiry_command == Visca.inquiry_commands.zoom_position then
                     data = {
-                        position = bit.lshift(bit.band(_self.arguments[1] or 0, 0x0F), 12) +
-                                   bit.lshift(bit.band(_self.arguments[2] or 0, 0x0F), 8) +
-                                   bit.lshift(bit.band(_self.arguments[3] or 0, 0x0F), 4) +
-                                   bit.band(_self.arguments[4] or 0, 0x0F),
+                        zoom = bit.lshift(bit.band(_self.arguments[1] or 0, 0x0F), 12) +
+                               bit.lshift(bit.band(_self.arguments[2] or 0, 0x0F), 8) +
+                               bit.lshift(bit.band(_self.arguments[3] or 0, 0x0F), 4) +
+                               bit.band(_self.arguments[4] or 0, 0x0F),
                     }
                 end
             elseif category == Visca.categories.pan_tilter then

@@ -293,7 +293,50 @@ local function open_visca_connection(camera_id)
                         log("Set setting %s to %s", version_info_setting, version_info)
                     end
 
-                    -- TODO: Process ptz values
+                    if reply_data.zoom or reply_data.pan or reply_data.tilt then
+                        local ptz_vals = {}
+
+                        if reply_data.zoom then
+                            table.insert(ptz_vals, string.format("Zoom: %d (%04X)", reply_data.zoom, reply_data.zoom))
+                        end
+                        if reply_data.pan then
+                            table.insert(ptz_vals, string.format("Pan %d (%04X)", reply_data.pan, reply_data.pan))
+                        end
+                        if reply_data.tilt then
+                            table.insert(ptz_vals, string.format("Tilt: %d (%04X)", reply_data.tilt, reply_data.tilt))
+                        end
+
+                        local current_scene = obs.obs_frontend_get_current_preview_scene()
+                        if current_scene ~= nil then
+                            local scene = obs.obs_scene_from_source(current_scene)
+                            local scene_items = obs.obs_scene_enum_items(scene)
+                            if scene_items ~= nil then
+                                for _, scene_item in pairs(scene_items) do
+                                    local scene_item_source = obs.obs_sceneitem_get_source(scene_item)
+                                    local scene_item_source_id = obs.obs_source_get_unversioned_id(scene_item_source)
+                                    if scene_item_source_id == plugin_def.id then
+                                        local item_source_settings = obs.obs_source_get_settings(scene_item_source)
+                                        if item_source_settings then
+                                            local scene_camera_id = obs.obs_data_get_int(item_source_settings,
+                                                "scene_camera")
+                                            if scene_camera_id == camera_id then
+                                                local ptz_str = table.concat(ptz_vals, ", ")
+                                                obs.obs_data_set_string(item_source_settings, "scene_ptz_position",
+                                                    ptz_str)
+                                                log("PTZ values set for camera %d: %s", camera_id, ptz_str)
+                                            else
+                                                print(string.format("Error setting PTZ values: callback camera %d " ..
+                                                    "does not match scene camera %d", camera_id, scene_camera_id))
+                                            end
+                                            obs.obs_data_release(item_source_settings)
+                                        end
+                                    end
+                                end
+
+                                obs.sceneitem_list_release(scene_items)
+                            end
+                        end
+                    end
                 end
             end)
 
@@ -667,7 +710,7 @@ local function do_cam_scene_action(settings, action_at)
 
             -- Capture Z,P,T from 'Zoom-value (hex-val), Pan-value (hex-val), Tilt-value (hex-val))
             for val in scene_ptz_position:gmatch("%((%x+)%)") do
-                table.insert(ptz_values, val)
+                table.insert(ptz_values, tonumber(val))
             end
 
             pan_position, tilt_position, zoom_position = unpack(ptz_values)
@@ -815,6 +858,8 @@ local function cb_scene_get_ptz_position(scene_props, btn_prop)
             obs.sceneitem_list_release(scene_items)
         end
     end
+
+    return true
 end
 
 plugin_def.get_name = function()
