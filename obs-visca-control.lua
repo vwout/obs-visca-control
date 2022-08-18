@@ -135,9 +135,10 @@ local function prop_presets_validate(props, property, settings)
     obs.obs_data_array_release(presets)
 end
 
-local function create_camera_controls(props, camera_id, settings)
-    local cams = obs.obs_properties_get(props, "cameras")
+local function create_camera_controls(cam_props, camera_id, settings)
+    local cams = obs.obs_properties_get(cam_props, "cameras")
     if cams then
+        local props = obs.obs_properties_create()
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
         local cam_name_suffix = string.format(" (cam %d)", camera_id)
 
@@ -147,39 +148,43 @@ local function create_camera_controls(props, camera_id, settings)
         end
         obs.obs_property_list_add_int(cams, cam_name, camera_id)
 
-        local prop_name = obs.obs_properties_get(props, cam_prop_prefix .. "name")
-        if prop_name == nil then
-            obs.obs_properties_add_text(props, cam_prop_prefix .. "name", "Name" .. cam_name_suffix,
-                obs.OBS_TEXT_DEFAULT)
-            obs.obs_data_set_default_string(settings, cam_prop_prefix .. "name", cam_name)
+        local prop_grp = obs.obs_properties_get(props, cam_prop_prefix .. "grp")
+        if prop_grp == nil then
+            local prop_name = obs.obs_properties_get(props, cam_prop_prefix .. "name")
+            if prop_name == nil then
+                obs.obs_properties_add_text(props, cam_prop_prefix .. "name", "Name", obs.OBS_TEXT_DEFAULT)
+                obs.obs_data_set_default_string(settings, cam_prop_prefix .. "name", cam_name)
+            end
+            local prop_version_info = obs.obs_properties_get(props, cam_prop_prefix .. "version_info")
+            if prop_version_info == nil then
+                prop_version_info = obs.obs_properties_add_text(props, cam_prop_prefix .. "version_info",
+                    "Version Info", obs.OBS_TEXT_DEFAULT)
+                obs.obs_property_set_enabled(prop_version_info, false)
+            end
+            local prop_address = obs.obs_properties_get(props, cam_prop_prefix .. "address")
+            if prop_address == nil then
+                obs.obs_properties_add_text(props, cam_prop_prefix .. "address", "IP Address", obs.OBS_TEXT_DEFAULT)
+            end
+            local prop_port = obs.obs_properties_get(props, cam_prop_prefix .. "port")
+            if prop_port == nil then
+                obs.obs_properties_add_int(props, cam_prop_prefix .. "port", "UDP Port", 1025, 65535, 1)
+                obs.obs_data_set_default_int(settings, cam_prop_prefix .. "port", Visca.default_port)
+            end
+            local prop_mode = obs.obs_properties_add_list(props, cam_prop_prefix .. "mode", "Mode",
+                obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+            obs.obs_property_list_add_int(prop_mode, "Generic", Visca.modes.generic)
+            obs.obs_property_list_add_int(prop_mode, "PTZOptics", Visca.modes.ptzoptics)
+            obs.obs_data_set_default_int(settings, cam_prop_prefix .. "mode", Visca.modes.generic)
+            local prop_presets = obs.obs_properties_get(props, cam_prop_prefix .. "presets")
+            if prop_presets == nil then
+                prop_presets = obs.obs_properties_add_editable_list(props, cam_prop_prefix .. "presets", "Presets",
+                    obs.OBS_EDITABLE_LIST_TYPE_STRINGS, "", "")
+            end
+            obs.obs_property_set_modified_callback(prop_presets, prop_presets_validate)
+
+            obs.obs_properties_add_group(cam_props, cam_prop_prefix .. "grp", "Camera configuration" .. cam_name_suffix,
+                obs.OBS_GROUP_NORMAL, props)
         end
-        local prop_version_info = obs.obs_properties_get(props, cam_prop_prefix .. "version_info")
-        if prop_version_info == nil then
-            prop_version_info = obs.obs_properties_add_text(props, cam_prop_prefix .. "version_info",
-                "Version Info" .. cam_name_suffix, obs.OBS_TEXT_DEFAULT)
-            obs.obs_property_set_enabled(prop_version_info, false)
-        end
-        local prop_address = obs.obs_properties_get(props, cam_prop_prefix .. "address")
-        if prop_address == nil then
-            obs.obs_properties_add_text(props, cam_prop_prefix .. "address", "IP Address" .. cam_name_suffix,
-                obs.OBS_TEXT_DEFAULT)
-        end
-        local prop_port = obs.obs_properties_get(props, cam_prop_prefix .. "port")
-        if prop_port == nil then
-            obs.obs_properties_add_int(props, cam_prop_prefix .. "port", "UDP Port" .. cam_name_suffix, 1025, 65535, 1)
-            obs.obs_data_set_default_int(settings, cam_prop_prefix .. "port", Visca.default_port)
-        end
-        local prop_mode = obs.obs_properties_add_list(props, cam_prop_prefix .. "mode", "Mode" .. cam_name_suffix,
-            obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
-        obs.obs_property_list_add_int(prop_mode, "Generic", Visca.modes.generic)
-        obs.obs_property_list_add_int(prop_mode, "PTZOptics", Visca.modes.ptzoptics)
-        obs.obs_data_set_default_int(settings, cam_prop_prefix .. "mode", Visca.modes.generic)
-        local prop_presets = obs.obs_properties_get(props, cam_prop_prefix .. "presets")
-        if prop_presets == nil then
-            prop_presets = obs.obs_properties_add_editable_list(props, cam_prop_prefix .. "presets",
-                "Presets" .. cam_name_suffix, obs.OBS_EDITABLE_LIST_TYPE_STRINGS, "", "")
-        end
-        obs.obs_property_set_modified_callback(prop_presets, prop_presets_validate)
     end
 end
 
@@ -197,7 +202,7 @@ local function prop_set_attrs_values(props, property, settings)
 
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
 
-        local cam_props = { "name", "version_info", "address", "port", "mode", "presets", "preset_info" }
+        local cam_props = { "grp", "name", "version_info", "address", "port", "mode", "presets", "preset_info" }
         for _, cam_prop_name in pairs(cam_props) do
             local cam_prop = obs.obs_properties_get(props, cam_prop_prefix .. cam_prop_name)
             if cam_prop then
@@ -277,7 +282,7 @@ local function open_visca_connection(camera_id)
                     plugin_data.reply_data[camera_id] = reply_data
 
                     if reply_data.vendor_id or reply_data.model_code or reply_data.rom_version then
-                        local version_info = string.format("Vendor: %s (%04X), Model: %s (%04X), Rom version: %04X",
+                        local version_info = string.format("Vendor: %s (%04X), Model: %s (%04X), Firmware: %04X",
                             Visca.CameraVendor[reply_data.vendor_id] or "Unknown",
                             reply_data.vendor_id or 0,
                             Visca.CameraModel[reply_data.vendor_id or 0][reply_data.model_code] or "Unknown",
