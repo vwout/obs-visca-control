@@ -160,6 +160,7 @@ local function create_camera_controls(cam_props, camera_id, settings)
                 prop_version_info = obs.obs_properties_add_text(props, cam_prop_prefix .. "version_info",
                     "Version Info", obs.OBS_TEXT_DEFAULT)
                 obs.obs_property_set_enabled(prop_version_info, false)
+                obs.obs_data_set_default_string(settings, cam_prop_prefix .. "version_info", "Unknown (not detected)")
             end
             local prop_address = obs.obs_properties_get(props, cam_prop_prefix .. "address")
             if prop_address == nil then

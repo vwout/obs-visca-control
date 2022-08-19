@@ -9,6 +9,7 @@ Besides recalling a pre-made preset, this plugin supports a few more control ope
 - Switch camera On
 - Switch camera Off
 - Preset Recall
+- Set the camera to a defined (absolute) Pan/Tilt/Zoom position
 - Zoom (Stop, In - Tele, Out - Wide, Direct)
 - Pan/Tilt (Up, Down, Left, Right, Upleft, Upright, Downleft, Downright, Stop, Home, Reset)
 - Focus (Manual mode, Automatic mode, Trigger refocus, To infinity, Near, Far)
@@ -38,11 +39,12 @@ Before the plugin can be used in a scene, it requires configuration in the `Scri
 
 Start by enumerating the number of cameras cameras that you want to control.
 For each camera a set of configuration properties will be shown:
-- _Name_: A friendly name for easy recognition of the camera
+- _Name_: A friendly name for easy recognition of the camera.
+- _Version Info_: The model, type and firmware (in case available and supported).
 - _Address_: The IP address at which the camera is available.
 - _Port_: The plugin by default uses _UDP_ port `52381`. Change this port when needed, e.g. to `1259` for a PTZOptics camera.
 - _Mode_: The operating mode of the plugin. The default is `Generic`, which follows the original (Sony) Visca specification. Other supported modes are `PTZOptics`, to send commands according the PTZOptics Visca protocol.
-- _Presets_: The list of presets that you want to configure for the camera
+- _Presets_: The list of presets that you want to configure for the camera - these need to match the presets that are configured in the camera itself.
 
 **Important: Reload the script after changing the address, port of mode configuration!**
 
@@ -65,9 +67,11 @@ To control a camera, add a `Visca Camera Control` source to a scene.
 In the source settings, select the camera and the action that should be executed.
 - _Camera_: The camera configured in the plugin (see [configuration](#configuration))
 - _Action_: Select the action that needs to be executed
+  - When a camera supports standby mode, Power On/Off can be used in a scene to activated or suspend te camera.
   - When the action 'Preset Recall' is chosen, the preset also needs to be chosen.
   These presets need to be configured per camera in the script settings, see [configuration](#configuration).
-  - For the action 'Pan/Tilt', the direction and speed also needs to be selected. 
+  - To not recall a predefined preset, but set the camera to an absolute position, choose 'Pan/Tilt/Zoom Absolute position' and retrieve the current position of the camera to be recalled later by pressing the button.
+  - For the action 'Pan/Tilt Direction', the camera will move in the configured direction. The direction and speed also needs to be selected. 
   Note that this action does not use a specific starting position, the pan action starts from the camera position that is actual when the scene becomes active.
   - For 'Zoom In' and 'Zoom Out', the animation speeds determines the zoom speed.
 - _Action Active_: The camera action is executed when either the scene in which the source is used becomes active in preview, in program, or both, depending on the selected entry in the selection.
