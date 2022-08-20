@@ -237,6 +237,64 @@ local function prop_num_cams(props, property, settings)
     return cam_added
 end
 
+local function get_plugin_settings_from_scene(program, camera_id)
+    program = program or false
+    local p_settings = {}
+
+    local scene_source = program and obs.obs_frontend_get_current_scene() or
+        obs.obs_frontend_get_current_preview_scene()
+
+    if scene_source ~= nil then
+        local scene_name = obs.obs_source_get_name(scene_source)
+        local scene = obs.obs_scene_from_source(scene_source)
+        local scene_items = obs.obs_scene_enum_items(scene)
+        if scene_items ~= nil then
+            for _, scene_item in pairs(scene_items) do
+                local scene_item_source = obs.obs_sceneitem_get_source(scene_item)
+                local scene_item_source_id = obs.obs_source_get_unversioned_id(scene_item_source)
+                if scene_item_source_id == plugin_def.id then
+                    local source_name = obs.obs_source_get_name(scene_item_source)
+                    local source_settings = obs.obs_source_get_settings(scene_item_source)
+                    local source_is_visible = obs.obs_source_showing(scene_item_source)
+
+                    if source_settings then
+                        local scene_camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
+                        if (camera_id == nil) or (camera_id == scene_camera_id) then
+                            table.insert(p_settings, {scene_name, source_name, source_settings, source_is_visible})
+                        else
+                            obs.obs_data_release(source_settings)
+                        end
+                    end
+                end
+            end
+
+            obs.sceneitem_list_release(scene_items)
+        end
+
+        obs.obs_source_release(scene_source)
+    end
+
+    local plugins_visitor = coroutine.create(function()
+            for _,plugin_setting in pairs(p_settings) do
+                coroutine.yield(unpack(plugin_setting))
+            end
+         end)
+
+    return function()
+        local result, scene_name, source_name, source_settings, source_is_visible = coroutine.resume(plugins_visitor)
+        if result then
+            return scene_name, source_name, source_settings, source_is_visible
+        else
+            -- Ensure source_settings refcounted copy is released
+            for _,plugin_setting in pairs(p_settings) do
+                _, _, source_settings, _ = unpack(plugin_setting)
+                obs.obs_data_release(source_settings)
+            end
+            return nil
+        end
+     end
+end
+
 local function close_visca_connection(camera_id)
     local connection = plugin_data.connections[camera_id]
 
@@ -313,34 +371,24 @@ local function open_visca_connection(camera_id)
                             table.insert(ptz_vals, "Zoom: n/a (-)")
                         end
 
-                        local current_scene = obs.obs_frontend_get_current_preview_scene()
-                        if current_scene ~= nil then
-                            local scene = obs.obs_scene_from_source(current_scene)
-                            local scene_items = obs.obs_scene_enum_items(scene)
-                            if scene_items ~= nil then
-                                for _, scene_item in pairs(scene_items) do
-                                    local scene_item_source = obs.obs_sceneitem_get_source(scene_item)
-                                    local scene_item_source_id = obs.obs_source_get_unversioned_id(scene_item_source)
-                                    if scene_item_source_id == plugin_def.id then
-                                        local item_source_settings = obs.obs_source_get_settings(scene_item_source)
-                                        if item_source_settings then
-                                            local scene_camera_id = obs.obs_data_get_int(item_source_settings,
-                                                "scene_camera")
-                                            if scene_camera_id == camera_id then
-                                                local ptz_str = table.concat(ptz_vals, ", ")
-                                                obs.obs_data_set_string(item_source_settings, "scene_ptz_position",
-                                                    ptz_str)
-                                                log("PTZ values set for camera %d: %s", camera_id, ptz_str)
-                                            else
-                                                print(string.format("Error setting PTZ values: callback camera %d " ..
-                                                    "does not match scene camera %d", camera_id, scene_camera_id))
-                                            end
-                                            obs.obs_data_release(item_source_settings)
-                                        end
-                                    end
+                        for scene_name, source_name, source_settings, _ in
+                            get_plugin_settings_from_scene(false, camera_id) do
+                            if source_settings then
+                                local scene_camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
+                                if scene_camera_id == camera_id then
+                                    local ptz_str = table.concat(ptz_vals, ", ")
+                                    obs.obs_data_set_string(source_settings, "scene_ptz_position", ptz_str)
+                                    log("PTZ values set for camera %d: %s", camera_id, ptz_str)
+                                else
+                                    print(string.format("Error setting PTZ values: callback camera %d does not match" ..
+                                        " source '%s' camera %d in scene %s",
+                                        camera_id, source_name, scene_camera_id, scene_name))
                                 end
 
-                                obs.sceneitem_list_release(scene_items)
+                                obs.obs_data_release(source_settings)
+                            else
+                                print(string.format("Error setting PTZ values: unable to find plugin settings for " ..
+                                    "camera %d in scene %s", camera_id, scene_name))
                             end
                         end
                     end
@@ -664,41 +712,22 @@ end
 local function camera_active_in_scene(program, camera_id)
     local active = false
 
-    local scene_source = program and obs.obs_frontend_get_current_scene() or
-        obs.obs_frontend_get_current_preview_scene()
-    if scene_source ~= nil then
-        local scene = obs.obs_scene_from_source(scene_source)
-        local scene_name = obs.obs_source_get_name(scene_source)
-        log("Current %s scene is %s", program and "program" or "preview", scene_name or "?")
+    for scene_name, _, source_settings, source_is_visible in get_plugin_settings_from_scene(program, camera_id) do
+        if scene_name then
+            log("Current %s scene is %s", program and "program" or "preview", scene_name or "?")
 
-        local scene_items = obs.obs_scene_enum_items(scene)
-        if scene_items ~= nil then
-            for _, scene_item in ipairs(scene_items) do
-                local scene_item_source = obs.obs_sceneitem_get_source(scene_item)
-                local scene_item_source_id = obs.obs_source_get_unversioned_id(scene_item_source)
-                if scene_item_source_id == plugin_def.id then
-                    local visible = obs.obs_source_showing(scene_item_source)
-                    if visible then
-                        local item_source_settings = obs.obs_source_get_settings(scene_item_source)
-                        if item_source_settings ~= nil then
-                            local item_source_camera_id = obs.obs_data_get_int(item_source_settings, "scene_camera")
-                            log("Camera ref: %d active on %s: %d", camera_id, program and "program" or "preview",
-                                item_source_camera_id)
-                            if camera_id == item_source_camera_id then
-                                active = true
-                                break
-                            end
-
-                            obs.obs_data_release(item_source_settings)
-                        end
-                    end
+            if source_settings and source_is_visible then
+                local source_camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
+                log("Camera ref: %d active on %s: %d", camera_id, program and "program" or "preview", source_camera_id)
+                if camera_id == source_camera_id then
+                    active = true
                 end
             end
 
-            obs.sceneitem_list_release(scene_items)
+            if source_settings then
+                obs.obs_data_release(source_settings)
+            end
         end
-
-        obs.obs_source_release(scene_source)
     end
 
     return active
@@ -757,59 +786,41 @@ end
 
 local function fe_callback(event, data)
     if event == obs.OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED then
-        local scenesource = obs.obs_frontend_get_current_preview_scene()
-        if scenesource ~= nil then
-            local scene = obs.obs_scene_from_source(scenesource)
-            local scene_name = obs.obs_source_get_name(scenesource)
+        for scene_name, source_name, source_settings, source_is_visible in get_plugin_settings_from_scene(false) do
             if plugin_data.preview_scene ~= scene_name then
                 plugin_data.preview_scene = scene_name
                 log("OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED to %s", scene_name or "?")
 
-                local scene_items = obs.obs_scene_enum_items(scene)
-                if scene_items ~= nil then
-                    for _, scene_item in ipairs(scene_items) do
-                        local source = obs.obs_sceneitem_get_source(scene_item)
-                        local source_id = obs.obs_source_get_unversioned_id(source)
-                        if source_id == plugin_def.id then
-                            local settings = obs.obs_source_get_settings(source)
-                            local source_name = obs.obs_source_get_name(source)
-                            local visible = obs.obs_source_showing(source)
+                if source_settings and source_is_visible then
+                    local do_action = false
+                    local active = obs.obs_data_get_int(source_settings, "scene_active")
 
-                            if visible then
-                                local do_action = false
-                                local active = obs.obs_data_get_int(settings, "scene_active")
+                    if (active == camera_action_active.Preview) or
+                       (active == camera_action_active.Always) then
+                        do_action = true
 
-                                if (active == camera_action_active.Preview) or
-                                   (active == camera_action_active.Always) then
-                                    do_action = true
-
-                                    local preview_exclusive = obs.obs_data_get_bool(settings, "preview_exclusive")
-                                    if preview_exclusive then
-                                        local preview_camera_id = obs.obs_data_get_int(settings, "scene_camera")
-                                        if camera_active_in_scene(true, preview_camera_id) then
-                                            do_action = false
-                                            log("Not running action for source '%s', " ..
-                                                "because it is currently active on program",
-                                                source_name or "?")
-                                        end
-                                    end
-                                end
-
-                                if do_action then
-                                    log("Preview source '%s'", source_name or "?")
-                                    do_cam_scene_action(settings, scene_action_at.Start)
-                                end
+                        local preview_exclusive = obs.obs_data_get_bool(source_settings, "preview_exclusive")
+                        if preview_exclusive then
+                            local preview_camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
+                            if camera_active_in_scene(true, preview_camera_id) then
+                                do_action = false
+                                log("Not running action for source '%s', " ..
+                                    "because it is currently active on program",
+                                    source_name or "?")
                             end
-
-                            obs.obs_data_release(settings)
                         end
+                    end
+
+                    if do_action then
+                        log("Preview source '%s'", source_name or "?")
+                        do_cam_scene_action(source_settings, scene_action_at.Start)
                     end
                 end
 
-                obs.sceneitem_list_release(scene_items)
+                if source_settings then
+                    obs.obs_data_release(source_settings)
+                end
             end
-
-            obs.obs_source_release(scenesource)
         end
     end
 end
@@ -839,30 +850,16 @@ local function source_signal_handler(calldata, signal)
 end
 
 local function cb_scene_get_ptz_position(scene_props, btn_prop)
-    local current_scene = obs.obs_frontend_get_current_preview_scene()
-    if current_scene ~= nil then
-        local scene = obs.obs_scene_from_source(current_scene)
-        local scene_items = obs.obs_scene_enum_items(scene)
-        if scene_items ~= nil then
-            for _, scene_item in pairs(scene_items) do
-                local scene_item_source = obs.obs_sceneitem_get_source(scene_item)
-                local scene_item_source_id = obs.obs_source_get_unversioned_id(scene_item_source)
-                if scene_item_source_id == plugin_def.id then
-                    local item_source_settings = obs.obs_source_get_settings(scene_item_source)
-                    if item_source_settings then
-                        local camera_id = obs.obs_data_get_int(item_source_settings, "scene_camera")
-                        local connection = open_visca_connection(camera_id)
-                        if connection then
-                            connection.Cam_Pantilt_Position_Inquiry()
-                            connection.Cam_Zoom_Position_Inquiry()
-                        end
-
-                        obs.obs_data_release(item_source_settings)
-                    end
-                end
+    for _, _, source_settings, _ in get_plugin_settings_from_scene(false) do
+        if source_settings then
+            local camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
+            local connection = open_visca_connection(camera_id)
+            if connection then
+                connection.Cam_Pantilt_Position_Inquiry()
+                connection.Cam_Zoom_Position_Inquiry()
             end
 
-            obs.sceneitem_list_release(scene_items)
+            obs.obs_data_release(source_settings)
         end
     end
 
