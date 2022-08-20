@@ -608,11 +608,14 @@ function Visca.connect(address, port)
         end
 
         function transmission.timed_out()
+            -- Only reply cycle should take maximum 4V. 1V is 42msec (worst case) for Sony.
+            -- Including one 1V for sending, the timeout needed should only be 210000000ns.
+            local visca_timeout = 1500000000
             if not transmission.send_timestamp then
                 return false
             else
                 return (obs.os_gettime_ns() - math.max(transmission.send_timestamp, transmission.ack_timestamp or 0)) >
-                    3000000000 -- 3 seconds in nanoseconds
+                    visca_timeout
             end
         end
 
