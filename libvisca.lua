@@ -611,7 +611,7 @@ function Visca.connect(address, port)
             if not transmission.send_timestamp then
                 return false
             else
-                return (obs.os_gettime_ns() - math.max(transmission.send_timestamp, transmission.ack or 0)) >
+                return (obs.os_gettime_ns() - math.max(transmission.send_timestamp, transmission.ack_timestamp or 0)) >
                     3000000000 -- 3 seconds in nanoseconds
             end
         end
