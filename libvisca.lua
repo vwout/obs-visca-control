@@ -181,7 +181,7 @@ Visca.limits = {
     PAN_MAX_SPEED   = 0x18,
     FOCUS_MIN_SPEED = 0x00,
     FOCUS_MAX_SPEED = 0x07,
-    PAN_MIN_VALIE   = 0x00000,
+    PAN_MIN_VALUE   = 0x00000,
     PAN_MAX_VALUE   = 0xFFFFF,
     TILT_MIN_VALUE  = 0x0000,
     TILT_MAX_VALUE  = 0xFFFF,
@@ -980,7 +980,7 @@ function Visca.connect(address, port)
 
     function connection.Cam_PanTilt_Absolute(speed, pan, tilt)
         speed = math.min(math.max(speed or 1, Visca.limits.PAN_MIN_SPEED), Visca.limits.PAN_MAX_SPEED)
-        pan = math.min(math.max(pan or 1, Visca.limits.PAN_MIN_VALIE), Visca.limits.PAN_MAX_VALUE)
+        pan = math.min(math.max(pan or 1, Visca.limits.PAN_MIN_VALUE), Visca.limits.PAN_MAX_VALUE)
         tilt = math.min(math.max(tilt or 1, Visca.limits.TILT_MIN_VALUE), Visca.limits.TILT_MAX_VALUE)
 
         local msg = Visca.Message()
@@ -990,9 +990,8 @@ function Visca.connect(address, port)
                 Visca.packet_consts.command,
                 Visca.categories.pan_tilter,
                 Visca.commands.pantilt_absolute,
-                speed,
-                0x00,  -- According to Sony spec it's always zero. Does this set tilt speed?
-                bit.band(bit.rshift(pan, 16), 0x0F),
+                speed, -- Pan speed
+                speed, -- Tilt speed
                 bit.band(bit.rshift(pan, 12), 0x0F),
                 bit.band(bit.rshift(pan, 8), 0x0F),
                 bit.band(bit.rshift(pan, 4), 0x0F),
