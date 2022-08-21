@@ -403,17 +403,17 @@ local function open_visca_connection(camera_id)
                 end
             end)
 
-            if plugin_data.debug then
-                connection.register_on_ack_callback(camera_id, function(t)
-                    log("Connection ACK received for camera %d (seq_nr %d)", camera_id, t and t.send.seq_nr or -1)
-                end)
-                connection.register_on_error_callback(camera_id, function(t)
-                    log("Connection ERROR received for camera %d (seq_nr %d)", camera_id, t and t.send.seq_nr or -1)
-                end)
-                connection.register_on_timeout_callback(camera_id, function(t)
-                    log("Connection Timeout for camera %d (seq_nr %d)", camera_id, t and t.send.seq_nr or -1)
-                end)
-            end
+            connection.register_on_ack_callback(camera_id, function(t)
+                log("Connection ACK received for camera %d (seq_nr %d)", camera_id, t and t.send.seq_nr or -1)
+            end)
+            connection.register_on_error_callback(camera_id, function(t)
+                local error_msg = Visca.error_type_names[t.error.error_type] or 'Unknown'
+                log("Connection ERROR received for camera %d (seq_nr %d): %s",
+                    camera_id, t and t.send.seq_nr or -1, error_msg)
+            end)
+            connection.register_on_timeout_callback(camera_id, function(t)
+                log("Connection Timeout for camera %d (seq_nr %d)", camera_id, t and t.send.seq_nr or -1)
+            end)
 
             plugin_data.connections[camera_id] = connection
 
