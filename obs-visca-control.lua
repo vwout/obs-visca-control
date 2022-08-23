@@ -346,13 +346,10 @@ local function open_visca_connection(camera_id)
                     plugin_data.reply_data[camera_id] = reply_data
 
                     if t_data.vendor_id or t_data.model_code or t_data.rom_version then
-                        if Visca.CameraModel[reply_data.vendor_id or 0] == nil then
-                            Visca.CameraModel[reply_data.vendor_id or 0] = {}
-                        end
                         local version_info = string.format("Vendor: %s (%04X), Model: %s (%04X), Firmware: %04X",
-                            Visca.CameraVendor[reply_data.vendor_id or 0] or "Unknown",
+                            Visca.CameraVendor[reply_data.vendor_id] or "Unknown",
                             reply_data.vendor_id or 0,
-                            Visca.CameraModel[reply_data.vendor_id or 0][reply_data.model_code] or "Unknown",
+                            Visca.CameraModel[reply_data.vendor_id][reply_data.model_code] or "Unknown",
                             reply_data.model_code or 0,
                             reply_data.rom_version or 0)
                         local version_info_setting = string.format("cam_%d_version_info", camera_id)

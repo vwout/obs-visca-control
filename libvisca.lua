@@ -198,8 +198,10 @@ Visca.CameraVendor = {
     [0x0003] = "Everet?",
     [0x0220] = "GlowStream",
 }
+
+Visca.CameraModelMeta = {}
+Visca.CameraModelMeta.__index = function(_, _) return {} end
 Visca.CameraModel = {
-    [0] = {},
     [0x0001] = {
         [0x051C] = "BRC-X400",
         [0x051D] = "BRC-X401",
@@ -216,6 +218,7 @@ Visca.CameraModel = {
         [0x0511] = "GS300-20x-NDI",
     },
 }
+setmetatable(Visca.CameraModel, Visca.CameraModelMeta)
 
 -- A Visca message is binary data with a message header (8 bytes) and payload (1 to 16 bytes).
 -- mode=generic uses this header, mode=PTZoptics skips this header
