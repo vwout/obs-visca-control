@@ -304,11 +304,11 @@ local function close_visca_connection(camera_id)
     local connection = plugin_data.connections[camera_id]
 
     if connection ~= nil then
-        connection.close()
-        connection.unregister_on_ack_callback(camera_id)
-        connection.unregister_on_completion_callback(camera_id)
-        connection.unregister_on_error_callback(camera_id)
-        connection.unregister_on_timeout_callback(camera_id)
+        connection:close()
+        connection:unregister_on_ack_callback(camera_id)
+        connection:unregister_on_completion_callback(camera_id)
+        connection:unregister_on_error_callback(camera_id)
+        connection:unregister_on_timeout_callback(camera_id)
         connection = nil
         plugin_data.connections[camera_id] = connection
     end
@@ -329,13 +329,13 @@ local function open_visca_connection(camera_id)
         if new_connection then
             connection = new_connection
             if camera_mode then
-                connection.set_mode(camera_mode)
+                connection:set_mode(camera_mode)
             end
 
-            connection.register_on_completion_callback(camera_id, function(t)
+            connection:register_on_completion_callback(camera_id, function(t)
                 log("Connection Completion received for camera %d (seq_nr %d)", camera_id, t and t.send.seq_nr or -1)
 
-                local t_data = t.inquiry_data()
+                local t_data = t:inquiry_data()
                 if t_data and type(t_data) == 'table' then
                     local reply_data = plugin_data.reply_data[camera_id] or {}
 
@@ -400,21 +400,21 @@ local function open_visca_connection(camera_id)
                 end
             end)
 
-            connection.register_on_ack_callback(camera_id, function(t)
+            connection:register_on_ack_callback(camera_id, function(t)
                 log("Connection ACK received for camera %d (seq_nr %d)", camera_id, t and t.send.seq_nr or -1)
             end)
-            connection.register_on_error_callback(camera_id, function(t)
+            connection:register_on_error_callback(camera_id, function(t)
                 local error_msg = Visca.error_type_names[t.error.error_type] or 'Unknown'
                 log("Connection ERROR received for camera %d (seq_nr %d): %s",
                     camera_id, t and t.send.seq_nr or -1, error_msg)
             end)
-            connection.register_on_timeout_callback(camera_id, function(t)
+            connection:register_on_timeout_callback(camera_id, function(t)
                 log("Connection Timeout for camera %d (seq_nr %d)", camera_id, t and t.send.seq_nr or -1)
             end)
 
             plugin_data.connections[camera_id] = connection
 
-            connection.Cam_Software_Version_Inquiry()
+            connection:Cam_Software_Version_Inquiry()
         else
             log(connection_error)
         end
@@ -442,45 +442,45 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
     local connection = open_visca_connection(camera_id)
     if connection then
         if camera_action == camera_actions.Camera_Off then
-            connection.Cam_Power(false)
+            connection:Cam_Power(false)
 
             -- Force close connection after sending Off-command.
-            connection.close()
+            connection:close()
             plugin_data.connections[camera_id] = nil
         elseif camera_action == camera_actions.Camera_On then
-            connection.Cam_Power(true)
+            connection:Cam_Power(true)
         elseif camera_action == camera_actions.Preset_Recal and action_args.preset then
-            connection.Cam_Preset_Recall(action_args.preset)
+            connection:Cam_Preset_Recall(action_args.preset)
         elseif camera_action == camera_actions.PanTilt then
-            connection.Cam_PanTilt(action_args.direction or Visca.PanTilt_directions.stop, action_args.speed or 0x03,
+            connection:Cam_PanTilt(action_args.direction or Visca.PanTilt_directions.stop, action_args.speed or 0x03,
                 action_args.speed or 0x03)
         elseif camera_action == camera_actions.Zoom_In then
-            connection.Cam_Zoom_Tele(action_args.speed)
+            connection:Cam_Zoom_Tele(action_args.speed)
         elseif camera_action == camera_actions.Zoom_Out then
-            connection.Cam_Zoom_Wide(action_args.speed)
+            connection:Cam_Zoom_Wide(action_args.speed)
         elseif camera_action == camera_actions.Focus_Auto then
-            connection.Cam_Focus_Mode(Visca.Focus_modes.auto)
+            connection:Cam_Focus_Mode(Visca.Focus_modes.auto)
         elseif camera_action == camera_actions.Focus_Manual then
-            connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
+            connection:Cam_Focus_Mode(Visca.Focus_modes.manual)
         elseif camera_action == camera_actions.Focus_Refocus then
-            connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
-            connection.Cam_Focus_Mode(Visca.Focus_modes.one_push_trigger)
+            connection:Cam_Focus_Mode(Visca.Focus_modes.manual)
+            connection:Cam_Focus_Mode(Visca.Focus_modes.one_push_trigger)
         elseif camera_action == camera_actions.Focus_Infinity then
-            connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
-            connection.Cam_Focus_Mode(Visca.Focus_modes.infinity)
+            connection:Cam_Focus_Mode(Visca.Focus_modes.manual)
+            connection:Cam_Focus_Mode(Visca.Focus_modes.infinity)
         elseif camera_action == camera_actions.Focus_Near then
-            connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
-            connection.Cam_Focus_Near()
+            connection:Cam_Focus_Mode(Visca.Focus_modes.manual)
+            connection:Cam_Focus_Near()
         elseif camera_action == camera_actions.Focus_Far then
-            connection.Cam_Focus_Mode(Visca.Focus_modes.manual)
-            connection.Cam_Focus_Far()
+            connection:Cam_Focus_Mode(Visca.Focus_modes.manual)
+            connection:Cam_Focus_Far()
         elseif camera_action == camera_actions.PanTiltZoom_Position then
             if action_args.pan_position ~= nil and action_args.tilt_position ~= nil then
-                connection.Cam_PanTilt_Absolute(action_args.speed or 1,
+                connection:Cam_PanTilt_Absolute(action_args.speed or 1,
                     action_args.pan_position, action_args.tilt_position)
             end
             if action_args.zoom_position ~= nil then
-                connection.Cam_Zoom_To(action_args.zoom_position)
+                connection:Cam_Zoom_To(action_args.zoom_position)
             end
         end
     end
@@ -493,15 +493,15 @@ local function do_cam_action_stop(camera_id, camera_action, action_args)
     local connection = open_visca_connection(camera_id)
     if connection then
         if camera_action == camera_actions.PanTilt then
-            connection.Cam_PanTilt(Visca.PanTilt_directions.stop)
+            connection:Cam_PanTilt(Visca.PanTilt_directions.stop)
         elseif camera_action == camera_actions.Zoom_In then
-            connection.Cam_Zoom_Stop()
+            connection:Cam_Zoom_Stop()
         elseif camera_action == camera_actions.Zoom_Out then
-            connection.Cam_Zoom_Stop()
+            connection:Cam_Zoom_Stop()
         elseif camera_action == camera_actions.Focus_Near then
-            connection.Cam_Focus_Stop()
+            connection:Cam_Focus_Stop()
         elseif camera_action == camera_actions.Focus_Far then
-            connection.Cam_Focus_Stop()
+            connection:Cam_Focus_Stop()
         end
     end
 end
@@ -516,14 +516,14 @@ end
 
 local function handleViscaResponses()
     for camera_id, connection in pairs(plugin_data.connections) do
-        local success, msg, err, num = pcall(connection.receive)
+        local success, msg, err, num = pcall(function() return connection:receive() end)
         if not success then
             log("Poll camera %d failed: %s", camera_id, msg)
         else
             if msg then
-                log("Poll camera %d (%s): %s", camera_id, tostring(connection), msg.as_string(connection.mode))
+                log("Poll camera %d (%s): %s", camera_id, tostring(connection), msg:as_string(connection.mode))
                 if plugin_data.debug then
-                    msg.dump()
+                    msg:dump()
                 end
             elseif err ~= "timeout" then
                 log("Poll camera %d (%s) failed: %s (%d)", camera_id, tostring(connection), err, num)
@@ -864,8 +864,8 @@ local function cb_scene_get_ptz_position(scene_props, btn_prop)
             local camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
             local connection = open_visca_connection(camera_id)
             if connection then
-                connection.Cam_Pantilt_Position_Inquiry()
-                connection.Cam_Zoom_Position_Inquiry()
+                connection:Cam_Pantilt_Position_Inquiry()
+                connection:Cam_Zoom_Position_Inquiry()
             end
 
             obs.obs_data_release(source_settings)
@@ -895,7 +895,7 @@ end
 plugin_def.destroy = function(source)
     for camera_id, connection in pairs(plugin_data.connections) do
         if connection ~= nil then
-            connection.close()
+            connection:close()
             plugin_data.connections[camera_id] = nil
         end
     end

@@ -2,20 +2,35 @@ local bit = require("bit")
 local socket = require("ljsocket")
 local obs = obslua
 
+--- Visca module
 local Visca = {}
 
+-- Constants
 Visca.default_port = 52381
 Visca.default_camera_nr = 1
 Visca.debug = false
 
-Visca.modes = {
+Visca.EnumMeta = {}
+Visca.EnumMeta.__index = Visca.EnumMeta
+function Visca.EnumMeta:has_value(value)
+    for _, v in pairs(self) do
+        if v == value then
+            return true
+        end
+    end
+
+    return false
+end
+
+--- @class ViscaModes Enumeration of supported Visca protocol modes
+Visca.modes = setmetatable({
     generic = 0,
     ptzoptics = 1
-}
+}, Visca.EnumMeta)
 
 -- Payload type
 -- Stores the value (Byte 0 and Byte 1) of the following table on the payload division
-Visca.payload_types = {
+Visca.payload_types = setmetatable({
     visca_command   = 0x0100,  -- VISCA command, Stores the VISCA command.
     visca_inquiry   = 0x0110,  -- VISCA inquiry, Stores the VISCA inquiry.
     visca_reply     = 0x0111,  -- VISCA reply, Stores the reply for the VISCA command and VISCA inquiry,
@@ -23,18 +38,18 @@ Visca.payload_types = {
     visca_setting   = 0x0120,  -- VISCA device setting command, Stores the VISCA device setting command.
     control_command = 0x0200,  -- Control command, Stores the control command.
     control_reply   = 0x0201   -- Control reply, Stores the reply for the control command.
-}
+}, Visca.EnumMeta)
 
 Visca.payload_type_names = {
     [Visca.payload_types.visca_command]   = "VISCA Command",
     [Visca.payload_types.visca_inquiry]   = "VISCA Inquiry",
     [Visca.payload_types.visca_reply]     = "VISCA Reply",
     [Visca.payload_types.visca_setting]   = "VISCA Device Setting Command",
-    [Visca.payload_types.control_command] = "Control Comand",
+    [Visca.payload_types.control_command] = "Control Command",
     [Visca.payload_types.control_reply]   = "Control Reply"
 }
 
-Visca.packet_consts = {
+Visca.packet_consts = setmetatable({
     req_addr_base    = 0x80,
     command          = 0x01,
     inquiry          = 0x09,
@@ -43,7 +58,7 @@ Visca.packet_consts = {
     reply_error      = 0x60,
     reply            = 0x90,
     terminator       = 0xFF
-}
+}, Visca.EnumMeta)
 
 Visca.error_type_names = {
     [0x01] = "Message length error",
@@ -54,7 +69,7 @@ Visca.error_type_names = {
     [0x41] = "Command not executable",
 }
 
-Visca.categories = {
+Visca.categories = setmetatable({
     interface    = 0x00,
     camera       = 0x04,
     exposure     = 0x04,
@@ -62,7 +77,7 @@ Visca.categories = {
     exposure_ext = 0x05,
     pan_tilter   = 0x06,
     camera_ext   = 0x07
-}
+}, Visca.EnumMeta)
 
 Visca.category_names = {
     [Visca.categories.interface]    = "Interface",
@@ -74,7 +89,7 @@ Visca.category_names = {
     [Visca.categories.camera_ext]   = "Exposure/Camera",
 }
 
-Visca.commands = {
+Visca.commands = setmetatable({
     power                   = 0x00,
     pantilt_drive           = 0x01,
     pantilt_absolute        = 0x02,
@@ -90,7 +105,7 @@ Visca.commands = {
     exposure_shutter_direct = 0x4A,
     exposure_iris_direct    = 0x4B,
     exposure_gain_direct    = 0x4B,
-}
+}, Visca.EnumMeta)
 
 Visca.command_names = {
     [Visca.commands.power]                   = "Power",
@@ -110,7 +125,7 @@ Visca.command_names = {
     [Visca.commands.exposure_gain_direct]    = "Gain Absolute",
 }
 
-Visca.command_arguments = {
+Visca.command_arguments = setmetatable({
     preset_recall    = 0x02,
     power_on         = 0x02,
     power_standby    = 0x03,
@@ -119,13 +134,13 @@ Visca.command_arguments = {
     focus_near_std   = 0x03,
     focus_far_var    = 0x20,
     focus_near_var   = 0x30,
-}
+}, Visca.EnumMeta)
 
-Visca.inquiry_commands = {
+Visca.inquiry_commands = setmetatable({
     software_version = 0x02,
     pantilt_position = 0x12,
     zoom_position    = 0x47,
-}
+}, Visca.EnumMeta)
 
 Visca.inquiry_command_names = {
     [Visca.inquiry_commands.software_version] = "Software Version",
@@ -148,15 +163,15 @@ Visca.command_argument_names = {
     [ca_key(Visca.commands.focus,   Visca.command_arguments.focus_near_var)]  = "Near (variable speed)",
 }
 
-Visca.Focus_modes = {
+Visca.Focus_modes = setmetatable({
     auto             = 0x3802,
     manual           = 0x3803,
     toggle           = 0x3810,
     one_push_trigger = 0x1801,
     infinity         = 0x1802,
-}
+}, Visca.EnumMeta)
 
-Visca.PanTilt_directions = {
+Visca.PanTilt_directions = setmetatable({
     upleft    = 0x0101,
     upright   = 0x0201,
     up        = 0x0301,
@@ -166,15 +181,15 @@ Visca.PanTilt_directions = {
     left      = 0x0103,
     right     = 0x0203,
     stop      = 0x0303,
-}
+}, Visca.EnumMeta)
 
-Visca.Zoom_subcommand = {
+Visca.Zoom_subcommand = setmetatable({
     stop = 0x00,
     tele_standard = 0x02,
     wide_standard = 0x03,
     tele_variable = 0x20,
     wide_variable = 0x30,
-}
+}, Visca.EnumMeta)
 
 Visca.limits = {
     PAN_MIN_SPEED   = 0x01,
@@ -220,352 +235,426 @@ Visca.CameraModel = {
 }
 setmetatable(Visca.CameraModel, Visca.CameraModelMeta)
 
--- A Visca message is binary data with a message header (8 bytes) and payload (1 to 16 bytes).
--- mode=generic uses this header, mode=PTZoptics skips this header
---
--- Byte:                      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
--- Payload type (byte 0-1):   |
--- Payload length (byte 2-3):       |
--- Sequence number (byte 4-7):            |
--- Payload (byte 8 - max 23):                         |
---
--- The wire format is big-endian (LSB first)
-function Visca.Message()
-    local self = {
+
+--- @class Message Visca Message object
+Visca.Message = {}
+Visca.Message.__index = Visca.Message
+
+--- Visca Message Constructor
+---
+--- A Visca message is binary data with a message header (8 bytes) and payload (1 to 16 bytes).
+--- mode=generic uses this header, mode=PTZoptics skips this header
+---
+--- Byte:                      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+--- Payload type (byte 0-1):   |
+--- Payload length (byte 2-3):       |
+--- Sequence number (byte 4-7):            |
+--- Payload (byte 8 - max 23):                         |
+---
+--- The wire format is big-endian (LSB first)
+---
+--- @return Message
+function Visca.Message.new()
+    local msg = {
         payload_type = 0x0000,
         payload_size = 0x0000,
         seq_nr       = 0x00000000,
         payload      = {},
         message      = {},
     }
+    setmetatable(msg, Visca.Message)
+    return msg
+end
 
-    function self.lsb(v)
-      return bit.band(v, 0x00FF)
+function Visca.Message.message_payload_command(command_inquiry, category, command, arguments)
+    local _self = {
+        command_inquiry = command_inquiry or 0x00,
+        category        = category or 0x00,
+        command         = command or 0x00,
+        arguments       = arguments or {}
+    }
+
+    function _self.from_payload(payload)
+        _self.command_inquiry = payload[2]
+        _self.category        = payload[3] or 0
+        _self.command         = payload[4] or 0
+
+        for i = 5, #payload do
+            if not ((i == #payload) and (payload[i] == Visca.packet_consts.terminator)) then
+                table.insert(_self.arguments, payload[i])
+            end
+        end
+
+        return _self
     end
 
-    function self.msb(v)
-      return bit.rshift(v, 8)
+    function _self.is_command()
+        return _self.command_inquiry == Visca.packet_consts.command
     end
 
-    local function message_payload_command(command_inquiry, category, command, arguments)
-        local _self = {
-            command_inquiry = command_inquiry or 0x00,
-            category        = category or 0x00,
-            command         = command or 0x00,
-            arguments       = arguments or {}
-        }
+    function _self.is_inquiry()
+        return _self.command_inquiry == Visca.packet_consts.inquiry
+    end
 
-        function _self.from_payload(payload)
-            _self.command_inquiry = payload[2]
-            _self.category        = payload[3] or 0
-            _self.command         = payload[4] or 0
+    function _self.is_reply()
+        return _self.command_inquiry == Visca.packet_consts.reply
+    end
 
-            for i = 5, #payload do
+    function _self.as_string()
+        local args = '- (no arguments)'
+        if #_self.arguments > 0 then
+            local descr = Visca.command_argument_names[ca_key(_self.command, _self.arguments[1])]
+
+            local str_a = {}
+            for i = descr and 2 or 1, #_self.arguments do
+                table.insert(str_a, string.format('%02X', _self.arguments[i]))
+            end
+
+            args = (descr or 'arguments') .. ' ' .. table.concat(str_a, ' ')
+        end
+
+        if _self.is_command() then
+            return string.format('Command on %s: %s, %s',
+                Visca.category_names[_self.category],
+                Visca.command_names[_self.command] or string.format("Unknown (0x%0x)", _self.command),
+                args)
+        elseif _self.is_inquiry() then
+            return string.format('Inquiry on %s: %s, %s',
+                Visca.category_names[_self.category],
+                Visca.command_names[_self.command] or string.format("Unknown (0x%0x)", _self.command),
+                args)
+        else
+            return 'Unknown'
+        end
+    end
+
+    return _self
+end
+
+function Visca.Message.message_payload_reply()
+    local _self = {
+        reply_type    = 0x00,
+        socket_number = 0,
+        error_type    = 0x00,
+        arguments     = {}
+    }
+
+    function _self.from_payload(payload)
+        _self.reply_type    = bit.band(payload[2], 0xF0)
+        _self.socket_number = bit.band(payload[2], 0x0F)
+
+        if _self.is_error() then
+            _self.error_type = payload[3] or 0
+        else
+            for i = 3, #payload do
                 if not ((i == #payload) and (payload[i] == Visca.packet_consts.terminator)) then
                     table.insert(_self.arguments, payload[i])
                 end
             end
-
-            return _self
-        end
-
-        function _self.is_command()
-            return _self.command_inquiry == Visca.packet_consts.command
-        end
-
-        function _self.is_inquiry()
-            return _self.command_inquiry == Visca.packet_consts.inquiry
-        end
-
-        function _self.is_reply()
-            return _self.command_inquiry == Visca.packet_consts.reply
-        end
-
-        function _self.as_string()
-            local args = '- (no arguments)'
-            if #_self.arguments > 0 then
-                local descr = Visca.command_argument_names[ca_key(_self.command, _self.arguments[1])]
-
-                local str_a = {}
-                for i = descr and 2 or 1, #_self.arguments do
-                    table.insert(str_a, string.format('%02X', _self.arguments[i]))
-                end
-
-                args = (descr or 'arguments') .. ' ' .. table.concat(str_a, ' ')
-            end
-
-            if _self.is_command() then
-                return string.format('Command on %s: %s, %s',
-                    Visca.category_names[_self.category],
-                    Visca.command_names[_self.command] or string.format("Unknown (0x%0x)", _self.command),
-                    args)
-            elseif _self.is_inquiry() then
-                return string.format('Inquiry on %s: %s, %s',
-                    Visca.category_names[_self.category],
-                    Visca.command_names[_self.command] or string.format("Unknown (0x%0x)", _self.command),
-                    args)
-            else
-                return 'Unknown'
-            end
         end
 
         return _self
     end
 
-    local function message_payload_reply()
-        local _self = {
-            reply_type    = 0x00,
-            socket_number = 0,
-            error_type    = 0x00,
-            arguments     = {}
-        }
-
-        function _self.from_payload(payload)
-            _self.reply_type    = bit.band(payload[2], 0xF0)
-            _self.socket_number = bit.band(payload[2], 0x0F)
-
-            if _self.is_error() then
-                _self.error_type = payload[3] or 0
-            else
-                for i = 3, #payload do
-                    if not ((i == #payload) and (payload[i] == Visca.packet_consts.terminator)) then
-                        table.insert(_self.arguments, payload[i])
-                    end
-                end
-            end
-
-            return _self
-        end
-
-        function _self.is_ack()
-            return _self.reply_type == Visca.packet_consts.reply_ack
-        end
-
-        function _self.is_completion()
-            return _self.reply_type == Visca.packet_consts.reply_completion
-        end
-
-        function _self.is_error()
-            return _self.reply_type == Visca.packet_consts.reply_error
-        end
-
-        function _self.get_inquiry_data_for(inquiry_payload)
-            local _,_,category,inquiry_command = unpack(inquiry_payload)
-            local data = {}
-
-            if category == Visca.categories.interface then
-                if inquiry_command == Visca.inquiry_commands.software_version then
-                    data = {
-                        vendor_id   = bit.lshift(_self.arguments[1] or 0, 8) + (_self.arguments[2] or 0),
-                        model_code  = bit.lshift(_self.arguments[3] or 0, 8) + (_self.arguments[4] or 0),
-                        rom_version = bit.lshift(_self.arguments[5] or 0, 8) + (_self.arguments[6] or 0),
-                    }
-                end
-            elseif category == Visca.categories.camera then
-                if inquiry_command == Visca.inquiry_commands.zoom_position then
-                    data = {
-                        zoom = bit.lshift(bit.band(_self.arguments[1] or 0, 0x0F), 12) +
-                               bit.lshift(bit.band(_self.arguments[2] or 0, 0x0F), 8) +
-                               bit.lshift(bit.band(_self.arguments[3] or 0, 0x0F), 4) +
-                               bit.band(_self.arguments[4] or 0, 0x0F),
-                    }
-                end
-            elseif category == Visca.categories.pan_tilter then
-                if inquiry_command == Visca.inquiry_commands.pantilt_position then
-                    data = {
-                        pan  = bit.lshift(bit.band(_self.arguments[1] or 0, 0x0F), 12) +
-                               bit.lshift(bit.band(_self.arguments[2] or 0, 0x0F), 8) +
-                               bit.lshift(bit.band(_self.arguments[3] or 0, 0x0F), 4) +
-                               bit.band(_self.arguments[4] or 0, 0x0F),
-                        tilt = bit.lshift(bit.band(_self.arguments[5] or 0, 0x0F), 12) +
-                               bit.lshift(bit.band(_self.arguments[6] or 0, 0x0F), 8) +
-                               bit.lshift(bit.band(_self.arguments[7] or 0, 0x0F), 4) +
-                               bit.band(_self.arguments[8] or 0, 0x0F)
-                    }
-                end
-            end
-
-            return data
-        end
-
-        function _self.as_string()
-            if _self.is_ack() then
-                return 'Acknowledge'
-            elseif _self.is_completion() then
-                if #_self.arguments > 0 then
-                    local str_a = {}
-                    for b = 1, #_self.arguments do
-                        table.insert(str_a, string.format('%02X', _self.arguments[b]))
-                    end
-
-                    return 'Completion, inquiry: ' .. table.concat(str_a, ' ')
-                else
-                    return 'Completion, command'
-                end
-            elseif _self.is_error() then
-                return string.format('Error on socket %d: %s (%02x)',
-                                     _self.socket_number,
-                                     Visca.error_type_names[_self.error_type] or 'Unknown',
-                                     _self.error_type)
-            else
-                return 'Unknown'
-            end
-        end
-
-        return _self
+    function _self.is_ack()
+        return _self.reply_type == Visca.packet_consts.reply_ack
     end
 
-    function self.from_data(data)
-        local message_length = #(data or '')
-        if message_length > 1 then
-            if (string.byte(data, 1) == 0x01 or
-                string.byte(data, 1) == 0x02) and message_length >= 9 and message_length <= 24 then
-                self.payload_type = string.byte(data, 1) * 256 + string.byte(data, 2)
-                self.payload_size = string.byte(data, 3) * 256 + string.byte(data, 4)
-                self.seq_nr       = string.byte(data, 5) * 2^24 +
-                                    string.byte(data, 6) * 2^16 +
-                                    string.byte(data, 7) * 2^8 +
-                                    string.byte(data, 8)
-
-                for b = 1, self.payload_size do
-                    if 8+b <= message_length then
-                        table.insert(self.payload, string.byte(data, 8 + b))
-                    else
-                        if self.payload_size > #self.payload then
-                            self.payload_size = #self.payload
-                        end
-                        print(string.format("Ignoring byte %d, payload index beyond message length %d",
-                                            8+b, message_length))
-                    end
-                end
-            elseif message_length >= 1 and message_length <= 16 then
-                self.payload_size = message_length
-                for b = 1, message_length do
-                    table.insert(self.payload, string.byte(data, b))
-                end
-            end
-
-            if (bit.band(self.payload[1] or 0, 0xF0) == 0x80) then
-                -- command or inquiry
-                self.message.command = message_payload_command().from_payload(self.payload)
-            elseif (bit.band(self.payload[1] or 0, 0xF0) == 0x90) then
-                -- reply
-                self.message.reply = message_payload_reply().from_payload(self.payload)
-            end
-        end
-
-        return self
+    function _self.is_completion()
+        return _self.reply_type == Visca.packet_consts.reply_completion
     end
 
-    function self.to_data(mode)
-        mode = mode or Visca.modes.generic
-        local payload_size = (self.payload_size > 0) and self.payload_size or #self.payload
+    function _self.is_error()
+        return _self.reply_type == Visca.packet_consts.reply_error
+    end
+
+    function _self.get_inquiry_data_for(inquiry_payload)
+        local _,_,category,inquiry_command = unpack(inquiry_payload)
         local data = {}
 
-        if mode == Visca.modes.generic then
-            data = {
-                self.msb(self.payload_type),
-                self.lsb(self.payload_type),
-                self.msb(payload_size),
-                self.lsb(payload_size),
-                bit.band(bit.rshift(self.seq_nr, 24), 0xFF),
-                bit.band(bit.rshift(self.seq_nr, 16), 0xFF),
-                bit.band(bit.rshift(self.seq_nr, 8), 0xFF),
-                bit.band(self.seq_nr, 0xFF),
-            }
-        end
-
-        for b = 1, payload_size do
-            table.insert(data, self.payload[b])
-        end
-
-        local str_a = {}
-        for _,v in ipairs(data) do
-          table.insert(str_a, string.char(v))
-        end
-
-        return table.concat(str_a)
-    end
-
-    function self.as_string(mode)
-        mode = mode or Visca.modes.generic
-        local bin_str = self.to_data(mode)
-        local bin_len = #(bin_str or "")
-
-        local str_a = {}
-        for b = 1, bin_len do
-            table.insert(str_a, string.format('%02X', string.byte(bin_str, b)))
-        end
-
-        return table.concat(str_a, ' ')
-    end
-
-    function self.dump(name, prefix, mode)
-        if name then
-          print('\n' .. name .. ':')
-        end
-        prefix = prefix or '- '
-
-        print(string.format('%sMessage:         %s',
-                            prefix or '',
-                            self.as_string(mode)))
-        print(string.format("%sPayload type:    %s (0x%02X%02X)",
-                            prefix or '',
-                            Visca.payload_type_names[self.payload_type] or 'Unkown',
-                            math.floor(self.payload_type/256), self.payload_type % 256))
-        print(string.format('%sPayload length:  %d',
-                            prefix or '',
-                            (self.payload_size > 0) and self.payload_size or #self.payload))
-        print(string.format('%sSequence number: %d',
-                            prefix or '',
-                            self.seq_nr))
-
-        if self.message.command then
-            print(string.format('%sPayload:         Command',
-                                prefix or ''))
-            print(string.format('%s                 %s',
-                                prefix or '',
-                                self.message.command.as_string()))
-        elseif self.message.reply then
-            print(string.format('%sPayload:         Reply',
-                                prefix or ''))
-            print(string.format('%s                 %s',
-                                prefix or '',
-                                self.message.reply.as_string()))
-        else
-            print(string.format('%sPayload:         %s',
-                                prefix or '',
-                                tostring(self.payload)))
-            for k,v in pairs(self.payload) do
-                print(string.format('%sPayload:         - byte %02X: 0x%02X',
-                                    prefix or '',
-                                    k,
-                                    v))
+        if category == Visca.categories.interface then
+            if inquiry_command == Visca.inquiry_commands.software_version then
+                data = {
+                    vendor_id   = bit.lshift(_self.arguments[1] or 0, 8) + (_self.arguments[2] or 0),
+                    model_code  = bit.lshift(_self.arguments[3] or 0, 8) + (_self.arguments[4] or 0),
+                    rom_version = bit.lshift(_self.arguments[5] or 0, 8) + (_self.arguments[6] or 0),
+                }
             end
-
+        elseif category == Visca.categories.camera then
+            if inquiry_command == Visca.inquiry_commands.zoom_position then
+                data = {
+                    zoom = bit.lshift(bit.band(_self.arguments[1] or 0, 0x0F), 12) +
+                           bit.lshift(bit.band(_self.arguments[2] or 0, 0x0F), 8) +
+                           bit.lshift(bit.band(_self.arguments[3] or 0, 0x0F), 4) +
+                           bit.band(_self.arguments[4] or 0, 0x0F),
+                }
+            end
+        elseif category == Visca.categories.pan_tilter then
+            if inquiry_command == Visca.inquiry_commands.pantilt_position then
+                data = {
+                    pan  = bit.lshift(bit.band(_self.arguments[1] or 0, 0x0F), 12) +
+                           bit.lshift(bit.band(_self.arguments[2] or 0, 0x0F), 8) +
+                           bit.lshift(bit.band(_self.arguments[3] or 0, 0x0F), 4) +
+                           bit.band(_self.arguments[4] or 0, 0x0F),
+                    tilt = bit.lshift(bit.band(_self.arguments[5] or 0, 0x0F), 12) +
+                           bit.lshift(bit.band(_self.arguments[6] or 0, 0x0F), 8) +
+                           bit.lshift(bit.band(_self.arguments[7] or 0, 0x0F), 4) +
+                           bit.band(_self.arguments[8] or 0, 0x0F)
+                }
+            end
         end
 
-        return self
+        return data
+    end
+
+    function _self.as_string()
+        if _self.is_ack() then
+            return 'Acknowledge'
+        elseif _self.is_completion() then
+            if #_self.arguments > 0 then
+                local str_a = {}
+                for b = 1, #_self.arguments do
+                    table.insert(str_a, string.format('%02X', _self.arguments[b]))
+                end
+
+                return 'Completion, inquiry: ' .. table.concat(str_a, ' ')
+            else
+                return 'Completion, command'
+            end
+        elseif _self.is_error() then
+            return string.format('Error on socket %d: %s (%02x)',
+                                 _self.socket_number,
+                                 Visca.error_type_names[_self.error_type] or 'Unknown',
+                                 _self.error_type)
+        else
+            return 'Unknown'
+        end
+    end
+
+    return _self
+end
+
+function Visca.Message:from_data(data)
+    local message_length = #(data or '')
+    if message_length > 1 then
+        if (string.byte(data, 1) == 0x01 or
+            string.byte(data, 1) == 0x02) and message_length >= 9 and message_length <= 24 then
+            self.payload_type = string.byte(data, 1) * 256 + string.byte(data, 2)
+            self.payload_size = string.byte(data, 3) * 256 + string.byte(data, 4)
+            self.seq_nr       = string.byte(data, 5) * 2^24 +
+                                string.byte(data, 6) * 2^16 +
+                                string.byte(data, 7) * 2^8 +
+                                string.byte(data, 8)
+
+            for b = 1, self.payload_size do
+                if 8+b <= message_length then
+                    table.insert(self.payload, string.byte(data, 8 + b))
+                else
+                    if self.payload_size > #self.payload then
+                        self.payload_size = #self.payload
+                    end
+                    print(string.format("Ignoring byte %d, payload index beyond message length %d",
+                                        8+b, message_length))
+                end
+            end
+        elseif message_length >= 1 and message_length <= 16 then
+            self.payload_size = message_length
+            for b = 1, message_length do
+                table.insert(self.payload, string.byte(data, b))
+            end
+        end
+
+        if (bit.band(self.payload[1] or 0, 0xF0) == 0x80) then
+            -- command or inquiry
+            self.message.command = Visca.Message.message_payload_command().from_payload(self.payload)
+        elseif (bit.band(self.payload[1] or 0, 0xF0) == 0x90) then
+            -- reply
+            self.message.reply = Visca.Message.message_payload_reply().from_payload(self.payload)
+        end
     end
 
     return self
 end
 
-function Visca.connect(address, port)
+function Visca.Message:to_data(mode)
+    mode = mode or Visca.modes.generic
+    local payload_size = (self.payload_size > 0) and self.payload_size or #self.payload
+    local data = {}
+
+    if mode == Visca.modes.generic then
+        data = {
+            bit.band(bit.rshift(self.payload_type, 8), 0xFF),
+            bit.band(self.payload_type, 0xFF),
+            bit.band(bit.rshift(payload_size, 8), 0xFF),
+            bit.band(payload_size, 0xFF),
+            bit.band(bit.rshift(self.seq_nr, 24), 0xFF),
+            bit.band(bit.rshift(self.seq_nr, 16), 0xFF),
+            bit.band(bit.rshift(self.seq_nr, 8), 0xFF),
+            bit.band(self.seq_nr, 0xFF),
+        }
+    end
+
+    for b = 1, payload_size do
+        table.insert(data, self.payload[b])
+    end
+
+    local str_a = {}
+    for _,v in ipairs(data) do
+      table.insert(str_a, string.char(v))
+    end
+
+    return table.concat(str_a)
+end
+
+--- @param mode ViscaModes
+function Visca.Message:as_string(mode)
+    mode = mode or Visca.modes.generic
+    local bin_str = self:to_data(mode)
+    local bin_len = #(bin_str or "")
+
+    local str_a = {}
+    for b = 1, bin_len do
+        table.insert(str_a, string.format('%02X', string.byte(bin_str, b)))
+    end
+
+    return table.concat(str_a, ' ')
+end
+
+function Visca.Message:dump(name, prefix, mode)
+    if name then
+      print('\n' .. name .. ':')
+    end
+    prefix = prefix or '- '
+
+    print(string.format('%sMessage:         %s',
+                        prefix or '',
+                        self:as_string(mode)))
+    print(string.format("%sPayload type:    %s (0x%02X%02X)",
+                        prefix or '',
+                        Visca.payload_type_names[self.payload_type] or 'Unknown',
+                        math.floor(self.payload_type/256), self.payload_type % 256))
+    print(string.format('%sPayload length:  %d',
+                        prefix or '',
+                        (self.payload_size > 0) and self.payload_size or #self.payload))
+    print(string.format('%sSequence number: %d',
+                        prefix or '',
+                        self.seq_nr))
+
+    if self.message.command then
+        print(string.format('%sPayload:         Command',
+                            prefix or ''))
+        print(string.format('%s                 %s',
+                            prefix or '',
+                            self.message.command.as_string()))
+    elseif self.message.reply then
+        print(string.format('%sPayload:         Reply',
+                            prefix or ''))
+        print(string.format('%s                 %s',
+                            prefix or '',
+                            self.message.reply.as_string()))
+    else
+        print(string.format('%sPayload:         %s',
+                            prefix or '',
+                            tostring(self.payload)))
+        for k,v in pairs(self.payload) do
+            print(string.format('%sPayload:         - byte %02X: 0x%02X',
+                                prefix or '',
+                                k,
+                                v))
+        end
+
+    end
+
+    return self
+end
+
+--- @class Transmission The Transmission object tracks responses received on a send message.
+--- It stores the response by type (ack, error or completion) and tracks timeout.
+Visca.Transmission = {}
+Visca.Transmission.__index = Visca.Transmission
+
+--- Visca Transaction Constructor
+---
+--- @param message Message The original sent message
+--- @return Transmission
+function Visca.Transmission.new(message)
+    local transmission = {
+      send                 = message,
+      send_timestamp       = nil,
+      ack                  = nil,  -- received ack message
+      ack_timestamp        = nil,  -- received ack timestamp
+      error                = nil,  -- received ack message
+      error_timestamp      = nil,  -- received ack timestamp
+      completion           = nil,  -- received completion message
+      completion_timestamp = nil,  -- received completion timestamp
+    }
+    setmetatable(transmission, Visca.Transmission)
+
+    return transmission
+end
+
+function Visca.Transmission:add_reply(reply)
+    if reply.is_ack() then
+        self.ack = reply
+        self.ack_timestamp = obs.os_gettime_ns()
+    elseif reply.is_completion() then
+        self.completion = reply
+        self.completion_timestamp = obs.os_gettime_ns()
+    elseif reply.is_error() then
+        self.error = reply
+        self.error_timestamp = obs.os_gettime_ns()
+    end
+end
+
+function Visca.Transmission:timed_out()
+    -- Only reply cycle should take maximum 4V. 1V is 42msec (worst case) for Sony.
+    -- Including one 1V for sending, the timeout needed should only be 210000000ns.
+    local visca_timeout = 1500000000
+    if not self.send_timestamp then
+        return false
+    else
+        return (obs.os_gettime_ns() - math.max(self.send_timestamp, self.ack_timestamp or 0)) >
+            visca_timeout
+    end
+end
+
+function Visca.Transmission:is_inquiry()
+    return self.send and (self.send.payload_type == Visca.payload_types.visca_inquiry)
+end
+
+function Visca.Transmission:inquiry_data()
+    if self:is_inquiry() and self.completion then
+        return self.completion.get_inquiry_data_for(self.send.payload)
+    else
+        return nil
+    end
+end
+
+--- @class Connection Connection to a Visca camera
+Visca.Connection = {}
+Visca.Connection.__index = Visca.Connection
+
+--- Visca Connection constructor
+---
+--- @param address string The IP address or DNS of the camera
+--- @param port number    The Visca control port of the camera
+--- @return Connection
+function Visca.Connection.new(address, port)
     port = port or Visca.default_port
     if (port < 1) or (port > 65535) then
         port = Visca.default_port
     end
     local sock_addr, sock_err = socket.find_first_address(address, port)
-    local error
     local connection = {
         sock               = nil,
         last_seq_nr        = 0xFFFFFFFF,
         address            = sock_addr,
+        error              = sock_err,
         mode               = Visca.modes.generic,
         transmission_queue = {},  -- List of Transmission objects
         callbacks          = {}   -- List of callbacks: [type][id] = function
     }
+    setmetatable(connection, Visca.Connection)
 
     if sock_addr then
         local sock = assert(socket.create("inet", "dgram", "udp"))
@@ -575,593 +664,535 @@ function Visca.connect(address, port)
         end
     end
 
-    if not connection.sock then
-        error = string.format("Unable to connect to %s: %s", address, sock_err)
-    end
+    return connection
+end
 
-    local function has_value(tbl, value)
-        for _, v in pairs(tbl) do
-            if v == value then
-                return true
-            end
-        end
-
+--- @param mode ViscaModes
+function Visca.Connection:set_mode(mode)
+    if Visca.modes:has_value(mode or Visca.modes.generic) then
+        self.mode = mode
+        return true
+    else
         return false
     end
+end
 
-    function connection.Transmission(message)
-        local transmission = {
-          send                 = message,
-          send_timestamp       = nil,
-          ack                  = nil,  -- received ack message
-          ack_timestamp        = nil,  -- received ack timestamp
-          error                = nil,  -- received ack message
-          error_timestamp      = nil,  -- received ack timestamp
-          completion           = nil,  -- recieved completion message
-          completion_timestamp = nil,  -- received completion timestamp
-        }
-
-        function transmission.add_reply(reply)
-            if reply.is_ack() then
-                transmission.ack = reply
-                transmission.ack_timestamp = obs.os_gettime_ns()
-            elseif reply.is_completion() then
-                transmission.completion = reply
-                transmission.completion_timestamp = obs.os_gettime_ns()
-            elseif reply.is_error() then
-                transmission.error = reply
-                transmission.error_timestamp = obs.os_gettime_ns()
-            end
-        end
-
-        function transmission.timed_out()
-            -- Only reply cycle should take maximum 4V. 1V is 42msec (worst case) for Sony.
-            -- Including one 1V for sending, the timeout needed should only be 210000000ns.
-            local visca_timeout = 1500000000
-            if not transmission.send_timestamp then
-                return false
-            else
-                return (obs.os_gettime_ns() - math.max(transmission.send_timestamp, transmission.ack_timestamp or 0)) >
-                    visca_timeout
-            end
-        end
-
-        function transmission.is_inquiry()
-            return transmission.send and (transmission.send.payload_type == Visca.payload_types.visca_inquiry)
-        end
-
-        function transmission.inquiry_data()
-            if transmission.is_inquiry() and transmission.completion then
-                return transmission.completion.get_inquiry_data_for(transmission.send.payload)
-            else
-                return nil
-            end
-        end
-
-        return transmission
+function Visca.Connection:__register_callback(callback_type, id, callback)
+    if type(self.callbacks[callback_type]) ~= 'table' then
+        self.callbacks[callback_type] = {}
     end
+    self.callbacks[callback_type][id] = callback
+end
 
-    function connection.set_mode(mode)
-        if has_value(Visca.modes, mode or Visca.modes.generic) then
-            connection.mode = mode
-            return true
-        else
-            return false
-        end
+function Visca.Connection:__unregister_callback(callback_type, id)
+    if self.callbacks[callback_type] ~= nil then
+        self.callbacks[callback_type][id] = nil
     end
+end
 
-    function connection._register_callback(callback_type, id, callback)
-        if type(connection.callbacks[callback_type]) ~= 'table' then
-            connection.callbacks[callback_type] = {}
-        end
-        connection.callbacks[callback_type][id] = callback
-    end
-
-    function connection._unregister_callback(callback_type, id)
-        if connection.callbacks[callback_type] ~= nil then
-            connection.callbacks[callback_type][id] = nil
-        end
-    end
-
-    function connection._exec_callback(callback_type, t, ...)
-        if connection.callbacks[callback_type] ~= nil then
-            for id,callback in pairs(connection.callbacks[callback_type]) do
-                if type(callback) == 'function' then
-                    local status,result_or_error = pcall(callback, t, unpack(arg or {}))
-                    if not status then
-                        print(string.format("Callback %s for %s failed: %s", id, callback_type, result_or_error))
-                    end
+function Visca.Connection:__exec_callback(callback_type, t, ...)
+    if self.callbacks[callback_type] ~= nil then
+        for id,callback in pairs(self.callbacks[callback_type]) do
+            if type(callback) == 'function' then
+                local status,result_or_error = pcall(callback, t, unpack(arg or {}))
+                if not status then
+                    print(string.format("Callback %s for %s failed: %s", id, callback_type, result_or_error))
                 end
             end
         end
     end
+end
 
-    function connection.register_on_ack_callback(id, callback)
-        connection._register_callback('ack', id, callback)
-    end
-    function connection.register_on_completion_callback(id, callback)
-        connection._register_callback('completion', id, callback)
-    end
-    function connection.register_on_error_callback(id, callback)
-        connection._register_callback('error', id, callback)
-    end
-    function connection.register_on_timeout_callback(id, callback)
-        connection._register_callback('timeout', id, callback)
-    end
+function Visca.Connection:register_on_ack_callback(id, callback)
+    self:__register_callback('ack', id, callback)
+end
+function Visca.Connection:register_on_completion_callback(id, callback)
+    self:__register_callback('completion', id, callback)
+end
+function Visca.Connection:register_on_error_callback(id, callback)
+    self:__register_callback('error', id, callback)
+end
+function Visca.Connection:register_on_timeout_callback(id, callback)
+    self:__register_callback('timeout', id, callback)
+end
 
-    function connection.unregister_on_ack_callback(id)
-        connection._unregister_callback('ack', id)
-    end
-    function connection.unregister_on_completion_callback(id)
-        connection._unregister_callback('completion', id)
-    end
-    function connection.unregister_on_error_callback(id)
-        connection._unregister_callback('error', id)
-    end
-    function connection.unregister_on_timeout_callback(id)
-        connection._unregister_callback('timeout', id)
-    end
+function Visca.Connection:unregister_on_ack_callback(id)
+    self:__unregister_callback('ack', id)
+end
+function Visca.Connection:unregister_on_completion_callback(id)
+    self:__unregister_callback('completion', id)
+end
+function Visca.Connection:unregister_on_error_callback(id)
+    self:__unregister_callback('error', id)
+end
+function Visca.Connection:unregister_on_timeout_callback(id)
+    self:__unregister_callback('timeout', id)
+end
 
-    function connection._transmit(message)
-        local data_to_send = message.to_data(connection.mode)
-        local sock = connection.sock
+--- @param message Message
+function Visca.Connection:__transmit(message)
+    local data_to_send = message:to_data(self.mode)
+    local sock = self.sock
 
-        if Visca.debug then
-            print(string.format("Connection transmit %s", message.as_string(connection.mode)))
-            message.dump(nil, nil, connection.mode)
-        end
-
-        if sock ~= nil then
-            return sock:send_to(connection.address, data_to_send), data_to_send
-        else
-            return 0, data_to_send
-        end
+    if Visca.debug then
+        print(string.format("Connection transmit %s", message:as_string(self.mode)))
+        message:dump(nil, nil, self.mode)
     end
 
-    function connection._transmissions_add_message(msg)
-        local found = false
-        local transmission = nil
+    if sock ~= nil then
+        return sock:send_to(self.address, data_to_send), data_to_send
+    else
+        return 0, data_to_send
+    end
+end
 
-        for _,t in pairs(connection.transmission_queue) do
-            if connection.mode == Visca.modes.generic then
-                if t.send.seq_nr == msg.seq_nr then
-                    found = true
-                end
-            elseif connection.mode == Visca.modes.ptzoptics then
-                -- The response does not have a header, so we don't know the sequence number
-                -- Let's just assume it belongs to the first message in the queue
+function Visca.Connection:__transmissions_add_message(msg)
+    local found = false
+    local transmission
+
+    for _,t in pairs(self.transmission_queue) do
+        if self.mode == Visca.modes.generic then
+            if t.send.seq_nr == msg.seq_nr then
                 found = true
             end
+        elseif self.mode == Visca.modes.ptzoptics then
+            -- The response does not have a header, so we don't know the sequence number
+            -- Let's just assume it belongs to the first message in the queue
+            found = true
+        end
 
-            if found then
-                t.add_reply(msg.message.reply)
-                transmission = t
+        if found then
+            t:add_reply(msg.message.reply)
+            transmission = t
+            break
+        end
+    end
+
+    return transmission
+end
+
+function Visca.Connection:__transmissions_process()
+    local transmit_size = 0
+    local transmit_data
+
+    for i,t in pairs(self.transmission_queue) do
+        if t:timed_out() then
+            self:__exec_callback('timeout', t)
+            t = nil
+        elseif t.error or t.completion then
+            -- Message transaction completed, remove from queue
+            t = nil
+        end
+
+        if not t then
+            self.transmission_queue[i] = nil
+        end
+    end
+
+    local first = true
+    for _,t in pairs(self.transmission_queue) do
+        -- Check if the first remaining message still needs transmission
+        if t then
+            if not t.send_timestamp then
+                transmit_size, transmit_data = self:__transmit(t.send)
+                t.send_timestamp = obs.os_gettime_ns()
+            end
+
+            -- When an ack has been received for the first message in the queue,
+            -- but the command is waiting for completion, proceed to the next
+            -- item in the queue for sending.
+            -- Otherwise, stop queue handling and don't send anything (else)
+            if not first or not t.ack_timestamp then
                 break
             end
-        end
 
-        return transmission
+            first = false
+        end
     end
 
-    function connection._transmissions_process()
-        local transmit_size = 0
-        local transmit_data = nil
+    return transmit_size, transmit_data
+end
 
-        for i,t in pairs(connection.transmission_queue) do
-            if t.timed_out() then
-                connection._exec_callback('timeout', t)
-                t = nil
-            elseif t.error or t.completion then
-                -- Message transaction completed, remove from queue
-                t = nil
+function Visca.Connection:close()
+    local sock = self.sock
+    if sock ~= nil then
+        sock:close()
+        self.sock = nil
+    end
+    if #self.transmission_queue > 0 then
+        print(string.format("Warning: %d unfinished messages in queue", #self.transmission_queue))
+    end
+end
+
+--- @param message Message
+function Visca.Connection:send(message)
+    if self.last_seq_nr < 0xFFFFFFFF then
+        self.last_seq_nr = self.last_seq_nr + 1
+    else
+        self.last_seq_nr = 0
+    end
+    message.seq_nr = self.last_seq_nr
+
+    table.insert(self.transmission_queue, Visca.Transmission.new(message))
+    return self:__transmissions_process()
+end
+
+function Visca.Connection:receive()
+    local result = {nil, "No connection", 0}
+
+    local sock = self.sock
+    if sock ~= nil then
+        local data, err, num = sock:receive_from(self.address, 32)
+        if data then
+            local msg = Visca.Message.new()
+            msg:from_data(data)
+            if Visca.debug then
+                print(string.format("Received %s", msg:as_string(self.mode)))
             end
 
-            if not t then
-                connection.transmission_queue[i] = nil
-            end
-        end
-
-        local first = true
-        for _,t in pairs(connection.transmission_queue) do
-            -- Check if the first remaining message still needs transmission
-            if t then
-                if not t.send_timestamp then
-                    transmit_size, transmit_data = connection._transmit(t.send)
-                    t.send_timestamp = obs.os_gettime_ns()
-                end
-
-                -- When an ack has been received for the first message in the queue,
-                -- but the command is waiting for completion, proceed to the next
-                -- item in the queue for sending.
-                -- Otherwise, stop queue handling and don't send anything (else)
-                if not first or not t.ack_timestamp then
-                    break
-                end
-
-                first = false
-            end
-        end
-
-        return transmit_size, transmit_data
-    end
-
-    function connection.close()
-        local sock = connection.sock
-        if sock ~= nil then
-            sock:close()
-            connection.sock = nil
-        end
-        if #connection.transmission_queue > 0 then
-            print(string.format("Warning: %d unfinished messages in queue", #connection.transmission_queue))
-        end
-    end
-
-    function connection.send(message)
-        if connection.last_seq_nr < 0xFFFFFFFF then
-            connection.last_seq_nr = connection.last_seq_nr + 1
-        else
-            connection.last_seq_nr = 0
-        end
-        message.seq_nr = connection.last_seq_nr
-
-        table.insert(connection.transmission_queue, connection.Transmission(message))
-        return connection._transmissions_process()
-    end
-
-    function connection.receive()
-        local result = {nil, "No connection", 0}
-
-        local sock = connection.sock
-        if sock ~= nil then
-            local data, err, num = sock:receive_from(connection.address, 32)
-            if data then
-                local msg = Visca.Message()
-                msg.from_data(data)
-                if Visca.debug then
-                    print(string.format("Received %s", msg.as_string(connection.mode)))
-                end
-
-                if msg.message.reply then
-                    local transmission = connection._transmissions_add_message(msg)
-                    if transmission then
-                        if msg.message.reply.is_ack() then
-                            connection._exec_callback('ack', transmission)
-                        elseif msg.message.reply.is_completion() then
-                            connection._exec_callback('completion', transmission)
-                        elseif msg.message.reply.is_error() then
-                            connection._exec_callback('error', transmission)
-                        end
-                    else
-                        print(string.format("Warning: Unable to find send message for reply: %s",
-                                msg.as_string(connection.mode)))
+            if msg.message.reply then
+                local transmission = self:__transmissions_add_message(msg)
+                if transmission then
+                    if msg.message.reply.is_ack() then
+                        self:__exec_callback('ack', transmission)
+                    elseif msg.message.reply.is_completion() then
+                        self:__exec_callback('completion', transmission)
+                    elseif msg.message.reply.is_error() then
+                        self:__exec_callback('error', transmission)
                     end
+                else
+                    print(string.format("Warning: Unable to find send message for reply: %s",
+                        msg:as_string(self.mode)))
                 end
-
-                result = {msg}
-            else
-                result = {nil, err, num}
             end
-        end
 
-        -- Call protected - to continue whatever happens
-        pcall(connection._transmissions_process)
-
-        return unpack(result)
-    end
-
-    function connection.Cam_Focus_Mode(mode)
-        if has_value(Visca.Focus_modes, mode) then
-            local msg = Visca.Message()
-            msg.payload_type = Visca.payload_types.visca_command
-            msg.payload = {
-                    Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                    Visca.packet_consts.command,
-                    Visca.categories.focus,
-                    bit.band(bit.rshift(mode, 8), 0xFF),
-                    bit.band(mode, 0xFF),
-                    Visca.packet_consts.terminator
-                }
-
-            return connection.send(msg)
+            result = {msg}
         else
-            if Visca.debug then
-                print(string.format("Cam_Focus_Mode invalid mode (0x%04x)", mode or 0))
-            end
-            return 0
+            result = {nil, err, num}
         end
     end
 
-    function connection.Cam_Focus_Stop()
-        local msg = Visca.Message()
+    -- Call protected - to continue whatever happens
+    pcall(function() return self:__transmissions_process() end)
+
+    return unpack(result)
+end
+
+function Visca.Connection:Cam_Focus_Mode(mode)
+    if Visca.Focus_modes:has_value(mode) then
+        local msg = Visca.Message.new()
         msg.payload_type = Visca.payload_types.visca_command
         msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.command,
-                Visca.categories.focus,
-                Visca.commands.focus,
-                Visca.command_arguments.focus_stop,
-                Visca.packet_consts.terminator
-            }
+            Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+            Visca.packet_consts.command,
+            Visca.categories.focus,
+            bit.band(bit.rshift(mode, 8), 0xFF),
+            bit.band(mode, 0xFF),
+            Visca.packet_consts.terminator
+        }
 
-        return connection.send(msg)
-    end
-
-    function connection.Cam_Focus_Far(speed)
-        if speed then
-            speed = math.min(math.max(speed or 0x02, Visca.limits.FOCUS_MIN_SPEED), Visca.limits.FOCUS_MAX_SPEED)
+        return self:send(msg)
+    else
+        if Visca.debug then
+            print(string.format("Cam_Focus_Mode invalid mode (0x%04x)", mode or 0))
         end
+        return 0
+    end
+end
 
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_command
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.command,
-                Visca.categories.focus,
-                Visca.commands.focus,
-                speed and bit.bor(Visca.command_arguments.focus_far_var, bit.band(speed, 0x07))
-                      or Visca.command_arguments.focus_far_std,
-                Visca.packet_consts.terminator
-            }
+function Visca.Connection:Cam_Focus_Stop()
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.focus,
+        Visca.commands.focus,
+        Visca.command_arguments.focus_stop,
+        Visca.packet_consts.terminator
+    }
 
-        return connection.send(msg)
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_Focus_Far(speed)
+    if speed then
+        speed = math.min(math.max(speed or 0x02, Visca.limits.FOCUS_MIN_SPEED), Visca.limits.FOCUS_MAX_SPEED)
     end
 
-    function connection.Cam_Focus_Near(speed)
-        if speed then
-            speed = math.min(math.max(speed or 0x02, Visca.limits.FOCUS_MIN_SPEED), Visca.limits.FOCUS_MAX_SPEED)
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.focus,
+        Visca.commands.focus,
+        speed and bit.bor(Visca.command_arguments.focus_far_var, bit.band(speed, 0x07))
+            or Visca.command_arguments.focus_far_std,
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_Focus_Near(speed)
+    if speed then
+        speed = math.min(math.max(speed or 0x02, Visca.limits.FOCUS_MIN_SPEED), Visca.limits.FOCUS_MAX_SPEED)
+    end
+
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.focus,
+        Visca.commands.focus,
+        speed and bit.bor(Visca.command_arguments.focus_near_var, bit.band(speed, 0x07))
+            or Visca.command_arguments.focus_near_std,
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_Power(on)
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.camera,
+        Visca.commands.power,
+        on and Visca.command_arguments.power_on or Visca.command_arguments.power_standby,
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_Preset_Recall(preset)
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.camera,
+        Visca.commands.preset,
+        Visca.command_arguments.preset_recall,
+        bit.band(preset, 0x7F),  -- Preset Number(=0 to 127)
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_PanTilt(direction, pan_speed, tilt_speed)
+    if Visca.PanTilt_directions:has_value(direction or Visca.PanTilt_directions.stop) then
+        pan_speed = math.min(math.max(pan_speed or 1, Visca.limits.PAN_MIN_SPEED), Visca.limits.PAN_MAX_SPEED)
+        tilt_speed = math.min(math.max(tilt_speed or 1, Visca.limits.TILT_MIN_SPEED), Visca.limits.TILT_MAX_SPEED)
+
+        local msg = Visca.Message.new()
+        msg.payload_type = Visca.payload_types.visca_command
+        msg.payload = {
+            Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+            Visca.packet_consts.command,
+            Visca.categories.pan_tilter,
+            Visca.commands.pantilt_drive,
+            bit.band(pan_speed, 0x1F),  -- lowest 5 bits are only relevant
+            bit.band(tilt_speed, 0x1F), -- lowest 5 bits are only relevant
+            bit.band(bit.rshift(direction, 8), 0xFF),
+            bit.band(direction, 0xFF),
+            Visca.packet_consts.terminator
+        }
+
+        return self:send(msg)
+    else
+        if Visca.debug then
+            print(string.format("Cam_PanTilt invalid direction (%d)", direction))
         end
+        return 0
+    end
+end
 
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_command
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.command,
-                Visca.categories.focus,
-                Visca.commands.focus,
-                speed and bit.bor(Visca.command_arguments.focus_near_var, bit.band(speed, 0x07))
-                      or Visca.command_arguments.focus_near_std,
-                Visca.packet_consts.terminator
-            }
+function Visca.Connection:Cam_PanTilt_Absolute(speed, pan, tilt)
+    speed = math.min(math.max(speed or 1, Visca.limits.PAN_MIN_SPEED), Visca.limits.PAN_MAX_SPEED)
+    pan = math.min(math.max(pan or 1, Visca.limits.PAN_MIN_VALUE), Visca.limits.PAN_MAX_VALUE)
+    tilt = math.min(math.max(tilt or 1, Visca.limits.TILT_MIN_VALUE), Visca.limits.TILT_MAX_VALUE)
 
-        return connection.send(msg)
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.pan_tilter,
+        Visca.commands.pantilt_absolute,
+        speed, -- Pan speed
+        speed, -- Tilt speed
+        bit.band(bit.rshift(pan, 12), 0x0F),
+        bit.band(bit.rshift(pan, 8), 0x0F),
+        bit.band(bit.rshift(pan, 4), 0x0F),
+        bit.band(pan, 0x0F),
+        bit.band(bit.rshift(tilt, 12), 0x0F),
+        bit.band(bit.rshift(tilt, 8), 0x0F),
+        bit.band(bit.rshift(tilt, 4), 0x0F),
+        bit.band(tilt, 0x0F),
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_PanTilt_Home()
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.pan_tilter,
+        Visca.commands.pantilt_home,
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_PanTilt_Reset()
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.pan_tilter,
+        Visca.commands.pantilt_reset,
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_Pantilt_Position_Inquiry()
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_inquiry
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.inquiry,
+        Visca.categories.pan_tilter,
+        Visca.inquiry_commands.pantilt_position,
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_Zoom_Stop()
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.camera,
+        Visca.commands.zoom,
+        Visca.Zoom_subcommand.stop,
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_Zoom_Tele(speed)
+    if speed then
+        speed = math.min(math.max(speed or 0x02, Visca.limits.ZOOM_MIN_SPEED), Visca.limits.ZOOM_MAX_SPEED)
     end
 
-    function connection.Cam_Power(on, await_ack, await_completion)
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_command
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.command,
-                Visca.categories.camera,
-                Visca.commands.power,
-                on and Visca.command_arguments.power_on or Visca.command_arguments.power_standby,
-                Visca.packet_consts.terminator
-            }
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.camera,
+        Visca.commands.zoom,
+        speed and bit.bor(Visca.Zoom_subcommand.tele_variable, bit.band(speed, 0x07))
+            or Visca.Zoom_subcommand.tele_standard,
+        Visca.packet_consts.terminator
+    }
 
-        return connection.send(msg)
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_Zoom_Wide(speed)
+    if speed then
+        speed = math.min(math.max(speed or 0x02, Visca.limits.ZOOM_MIN_SPEED), Visca.limits.ZOOM_MAX_SPEED)
     end
 
-    function connection.Cam_Preset_Recall(preset)
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_command
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.command,
-                Visca.categories.camera,
-                Visca.commands.preset,
-                Visca.command_arguments.preset_recall,
-                bit.band(preset, 0x7F),  -- Preset Number(=0 to 127)
-                Visca.packet_consts.terminator
-            }
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.camera,
+        Visca.commands.zoom,
+        speed and bit.bor(Visca.Zoom_subcommand.wide_variable, bit.band(speed, 0x07))
+            or Visca.Zoom_subcommand.wide_standard,
+        Visca.packet_consts.terminator
+    }
 
-        return connection.send(msg)
-    end
+    return self:send(msg)
+end
 
-    function connection.Cam_PanTilt(direction, pan_speed, tilt_speed)
-        if has_value(Visca.PanTilt_directions, direction or Visca.PanTilt_directions.stop) then
-            pan_speed = math.min(math.max(pan_speed or 1, Visca.limits.PAN_MIN_SPEED), Visca.limits.PAN_MAX_SPEED)
-            tilt_speed = math.min(math.max(tilt_speed or 1, Visca.limits.TILT_MIN_SPEED), Visca.limits.TILT_MAX_SPEED)
+function Visca.Connection:Cam_Zoom_To(zoom)
+    zoom = math.min(math.max(zoom or 0, Visca.limits.ZOOM_MIN_VALUE), Visca.limits.ZOOM_MAX_VALUE)
 
-            local msg = Visca.Message()
-            msg.payload_type = Visca.payload_types.visca_command
-            msg.payload = {
-                    Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                    Visca.packet_consts.command,
-                    Visca.categories.pan_tilter,
-                    Visca.commands.pantilt_drive,
-                    bit.band(pan_speed, 0x1F),  -- lowest 5 bits are only relevant
-                    bit.band(tilt_speed, 0x1F), -- lowest 5 bits are only relevant
-                    bit.band(bit.rshift(direction, 8), 0xFF),
-                    bit.band(direction, 0xFF),
-                    Visca.packet_consts.terminator
-                }
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.camera,
+        Visca.commands.zoom_direct,
+        bit.band(bit.rshift(zoom, 12), 0x0F),
+        bit.band(bit.rshift(zoom, 8), 0x0F),
+        bit.band(bit.rshift(zoom, 4), 0x0F),
+        bit.band(zoom, 0x0F),
+        Visca.packet_consts.terminator
+    }
 
-            return connection.send(msg)
-        else
-            if Visca.debug then
-                print(string.format("Cam_PanTilt invalid direction (%d)", direction))
-            end
-            return 0
-        end
-    end
+    return self:send(msg)
+end
 
-    function connection.Cam_PanTilt_Absolute(speed, pan, tilt)
-        speed = math.min(math.max(speed or 1, Visca.limits.PAN_MIN_SPEED), Visca.limits.PAN_MAX_SPEED)
-        pan = math.min(math.max(pan or 1, Visca.limits.PAN_MIN_VALUE), Visca.limits.PAN_MAX_VALUE)
-        tilt = math.min(math.max(tilt or 1, Visca.limits.TILT_MIN_VALUE), Visca.limits.TILT_MAX_VALUE)
+function Visca.Connection:Cam_Zoom_Position_Inquiry()
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_inquiry
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.inquiry,
+        Visca.categories.camera,
+        Visca.inquiry_commands.zoom_position,
+        Visca.packet_consts.terminator
+    }
 
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_command
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.command,
-                Visca.categories.pan_tilter,
-                Visca.commands.pantilt_absolute,
-                speed, -- Pan speed
-                speed, -- Tilt speed
-                bit.band(bit.rshift(pan, 12), 0x0F),
-                bit.band(bit.rshift(pan, 8), 0x0F),
-                bit.band(bit.rshift(pan, 4), 0x0F),
-                bit.band(pan, 0x0F),
-                bit.band(bit.rshift(tilt, 12), 0x0F),
-                bit.band(bit.rshift(tilt, 8), 0x0F),
-                bit.band(bit.rshift(tilt, 4), 0x0F),
-                bit.band(tilt, 0x0F),
-                Visca.packet_consts.terminator
-            }
+    return self:send(msg)
+end
 
-        return connection.send(msg)
-    end
+function Visca.Connection:Cam_Software_Version_Inquiry()
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_inquiry
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.inquiry,
+        Visca.categories.interface,
+        Visca.inquiry_commands.software_version,
+        Visca.packet_consts.terminator
+    }
 
-    function connection.Cam_PanTilt_Home()
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_command
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.command,
-                Visca.categories.pan_tilter,
-                Visca.commands.pantilt_home,
-                Visca.packet_consts.terminator
-            }
+    return self:send(msg)
+end
 
-        return connection.send(msg)
-    end
-
-    function connection.Cam_PanTilt_Reset()
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_command
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.command,
-                Visca.categories.pan_tilter,
-                Visca.commands.pantilt_reset,
-                Visca.packet_consts.terminator
-            }
-
-        return connection.send(msg)
-    end
-
-    function connection.Cam_Pantilt_Position_Inquiry()
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_inquiry
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.inquiry,
-                Visca.categories.pan_tilter,
-                Visca.inquiry_commands.pantilt_position,
-                Visca.packet_consts.terminator
-            }
-
-        return connection.send(msg)
-    end
-
-    function connection.Cam_Zoom_Stop()
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_command
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.command,
-                Visca.categories.camera,
-                Visca.commands.zoom,
-                Visca.Zoom_subcommand.stop,
-                Visca.packet_consts.terminator
-            }
-
-        return connection.send(msg)
-    end
-
-    function connection.Cam_Zoom_Tele(speed)
-        if speed then
-            speed = math.min(math.max(speed or 0x02, Visca.limits.ZOOM_MIN_SPEED), Visca.limits.ZOOM_MAX_SPEED)
-        end
-
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_command
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.command,
-                Visca.categories.camera,
-                Visca.commands.zoom,
-                speed and bit.bor(Visca.Zoom_subcommand.tele_variable, bit.band(speed, 0x07))
-                      or Visca.Zoom_subcommand.tele_standard,
-                Visca.packet_consts.terminator
-            }
-
-        return connection.send(msg)
-    end
-
-    function connection.Cam_Zoom_Wide(speed)
-        if speed then
-            speed = math.min(math.max(speed or 0x02, Visca.limits.ZOOM_MIN_SPEED), Visca.limits.ZOOM_MAX_SPEED)
-        end
-
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_command
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.command,
-                Visca.categories.camera,
-                Visca.commands.zoom,
-                speed and bit.bor(Visca.Zoom_subcommand.wide_variable, bit.band(speed, 0x07))
-                      or Visca.Zoom_subcommand.wide_standard,
-                Visca.packet_consts.terminator
-            }
-
-        return connection.send(msg)
-    end
-
-    function connection.Cam_Zoom_To(zoom)
-        zoom = math.min(math.max(zoom or 0, Visca.limits.ZOOM_MIN_VALUE), Visca.limits.ZOOM_MAX_VALUE)
-
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_command
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.command,
-                Visca.categories.camera,
-                Visca.commands.zoom_direct,
-                bit.band(bit.rshift(zoom, 12), 0x0F),
-                bit.band(bit.rshift(zoom, 8), 0x0F),
-                bit.band(bit.rshift(zoom, 4), 0x0F),
-                bit.band(zoom, 0x0F),
-                Visca.packet_consts.terminator
-            }
-
-        return connection.send(msg)
-    end
-
-    function connection.Cam_Zoom_Position_Inquiry()
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_inquiry
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.inquiry,
-                Visca.categories.camera,
-                Visca.inquiry_commands.zoom_position,
-                Visca.packet_consts.terminator
-            }
-
-        return connection.send(msg)
-    end
-
-    function connection.Cam_Software_Version_Inquiry()
-        local msg = Visca.Message()
-        msg.payload_type = Visca.payload_types.visca_inquiry
-        msg.payload = {
-                Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-                Visca.packet_consts.inquiry,
-                Visca.categories.interface,
-                Visca.inquiry_commands.software_version,
-                Visca.packet_consts.terminator
-            }
-
-        return connection.send(msg)
-    end
-
+function Visca.connect(address, port)
+    local connection = Visca.Connection.new(address, port)
     if connection.sock then
         return connection
     else
-        return nil, error
+        return nil, string.format("Unable to connect to %s: %s", address, connection.error)
     end
 end
 
