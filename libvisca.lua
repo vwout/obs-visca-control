@@ -568,6 +568,109 @@ function Visca.Message:dump(name, prefix, mode)
     return self
 end
 
+--- @class ReplyServer Server for cameras sending out-of-socket replies
+Visca.ReplyServer = {
+    clients = {},
+    whitelist = {},
+    servers = {},
+    replies = {},
+}
+
+function Visca.ReplyServer.add_listener_for(address, port)
+    local cnt = (Visca.ReplyServer.clients[port] or 0)
+    if cnt == 0 then
+        local sock_address, err, num = socket.find_first_address("*", port,
+            {family="inet", socket_type="dgram", protocol="udp"})
+        if address then
+            local server
+            server, err, num = socket.create("inet", "dgram", "udp")
+            if server then
+                local success
+                success, err, num = server:set_blocking(false)
+                if success then
+                    success, err, num = server:bind(sock_address, port)
+                    if success then
+                        Visca.ReplyServer.servers[port] = server
+                        cnt = cnt + 1
+
+                        if Visca.debug then
+                            print(string.format("Started new reply server at %s:%s",
+                                sock_address:get_ip(), sock_address:get_port()))
+                        end
+                    else
+                        print(string.format("Failed to bind server to %s:%s: %s (%d)",
+                            sock_address:get_ip(), sock_address:get_port(), err or "Unknown", num or 0))
+                    end
+                else
+                    print(string.format("Failed to set nonblocking server at %s:%s: %s (%d)",
+                        sock_address:get_ip(), sock_address:get_port(), err or "Unknown", num or 0))
+                end
+            else
+                print(string.format("Failed to start new reply server at %s:%s: %s (%d)",
+                    sock_address:get_ip(), sock_address:get_port(), err or "Unknown", num or 0))
+            end
+        else
+            print(string.format("Failed to determine server address for port %d: %s (%d)",
+                port, err or "Unknown", num or 0))
+        end
+    end
+
+    if Visca.ReplyServer.whitelist[address] == nil then
+        Visca.ReplyServer.whitelist[address] = 1
+    end
+    Visca.ReplyServer.clients[port] = cnt
+end
+
+function Visca.ReplyServer.remove_listener_for(port)
+    local cnt = (Visca.ReplyServer.clients[port] or 0) - 1
+
+    if cnt <= 0 then
+        local server = Visca.ReplyServer.servers[port]
+        if server ~= nil then
+            server:close()
+            Visca.ReplyServer.servers[port] = nil
+        end
+        Visca.ReplyServer.clients[port] = nil
+    else
+        Visca.ReplyServer.clients[port] = cnt
+    end
+end
+
+function Visca.ReplyServer.shutdown()
+    for _,server in pairs(Visca.ReplyServer.servers) do
+        server:close()
+    end
+
+    Visca.ReplyServer.servers = {}
+    Visca.ReplyServer.whitelist = {}
+    Visca.ReplyServer.clients = {}
+    Visca.ReplyServer.replies = {}
+end
+
+function Visca.ReplyServer.receive()
+    for _,server in pairs(Visca.ReplyServer.servers) do
+        local data, reply_source = server:receive_from()
+        if data ~= nil then
+            local address = reply_source:get_ip()
+            if Visca.ReplyServer.whitelist[address] ~= nil then
+                table.insert(Visca.ReplyServer.replies, {address, data})
+            end
+        end
+    end
+end
+
+function Visca.ReplyServer.get_data_for(address)
+    for k,v in pairs(Visca.ReplyServer.replies) do
+        if v ~= nil then
+            local reply_source, data = unpack(v)
+            if reply_source == address then
+                Visca.ReplyServer.replies[k] = nil
+                return data
+            end
+        end
+    end
+end
+
 --- @class Transmission The Transmission object tracks responses received on a send message.
 --- It stores the response by type (ack, error or completion) and tracks timeout.
 Visca.Transmission = {}
@@ -648,8 +751,9 @@ function Visca.Connection.new(address, port)
     local connection = {
         sock               = nil,
         last_seq_nr        = 0xFFFFFFFF,
-        address            = sock_addr,
-        error              = sock_err,
+        address            = address,
+        sock_address       = sock_addr,
+        sock_err           = sock_err,
         mode               = Visca.modes.generic,
         transmission_queue = {},  -- List of Transmission objects
         callbacks          = {}   -- List of callbacks: [type][id] = function
@@ -661,6 +765,7 @@ function Visca.Connection.new(address, port)
         local success, _ = sock:set_blocking(false)
         if success then
             connection.sock = sock
+            Visca.ReplyServer.add_listener_for(address, port)
         end
     end
 
@@ -740,7 +845,7 @@ function Visca.Connection:__transmit(message)
     end
 
     if sock ~= nil then
-        return sock:send_to(self.address, data_to_send), data_to_send
+        return sock:send_to(self.sock_address, data_to_send), data_to_send
     else
         return 0, data_to_send
     end
@@ -842,7 +947,12 @@ function Visca.Connection:receive()
 
     local sock = self.sock
     if sock ~= nil then
-        local data, err, num = sock:receive_from(self.address, 32)
+        local data, err, num = sock:receive_from(self.sock_address, 32)
+        if data == nil then
+            Visca.ReplyServer.receive()
+            data = Visca.ReplyServer.get_data_for(self.address)
+        end
+
         if data then
             local msg = Visca.Message.new()
             msg:from_data(data)
@@ -1192,7 +1302,7 @@ function Visca.connect(address, port)
     if connection.sock then
         return connection
     else
-        return nil, string.format("Unable to connect to %s: %s", address, connection.error)
+        return nil, string.format("Unable to connect to %s: %s", address, connection.sock_error)
     end
 end
 

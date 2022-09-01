@@ -900,6 +900,7 @@ plugin_def.destroy = function(source)
         end
     end
     plugin_data.connections = {}
+    Visca.ReplyServer.shutdown()
 end
 
 plugin_def.get_properties = function(data)
