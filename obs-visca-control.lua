@@ -143,7 +143,6 @@ end
 local function create_camera_controls(cam_props, camera_id, settings)
     local cams = obs.obs_properties_get(cam_props, "cameras")
     if cams then
-        local props = obs.obs_properties_create()
         local cam_prop_prefix = string.format("cam_%d_", camera_id)
         local cam_name_suffix = string.format(" (cam %d)", camera_id)
 
@@ -153,8 +152,9 @@ local function create_camera_controls(cam_props, camera_id, settings)
         end
         obs.obs_property_list_add_int(cams, cam_name, camera_id)
 
-        local prop_grp = obs.obs_properties_get(props, cam_prop_prefix .. "grp")
+        local prop_grp = obs.obs_properties_get(cam_props, cam_prop_prefix .. "grp")
         if prop_grp == nil then
+            local props = obs.obs_properties_create()
             local prop_name = obs.obs_properties_get(props, cam_prop_prefix .. "name")
             if prop_name == nil then
                 obs.obs_properties_add_text(props, cam_prop_prefix .. "name", "Name", obs.OBS_TEXT_DEFAULT)
@@ -514,6 +514,62 @@ local function cb_camera_hotkey(pressed, hotkey_data)
     end
 end
 
+local function cb_backup_restore(props, __property, __settings)
+    local backup_file = obs.obs_data_get_string(plugin_settings, "backup_file") or ""
+    if #backup_file > 0 then
+        local backup_settings = obs.obs_data_create_from_json_file_safe(backup_file, "bak")
+        if backup_settings ~= nil then
+            local num_cameras = obs.obs_data_get_int(backup_settings, "num_cameras")
+
+            for camera_id = 1, num_cameras do
+                create_camera_controls(props, camera_id, backup_settings)
+
+                local cam_prop_prefix = string.format("cam_%d_", camera_id)
+                local cam_name = obs.obs_data_get_string(backup_settings, cam_prop_prefix .. "name")
+                if cam_name then
+                    obs.obs_data_set_string(plugin_settings, cam_prop_prefix .. "name", cam_name)
+                end
+                local cam_address = obs.obs_data_get_string(backup_settings, cam_prop_prefix .. "address")
+                if cam_address then
+                    obs.obs_data_set_string(plugin_settings, cam_prop_prefix .. "address", cam_address)
+                end
+                local cam_port = obs.obs_data_get_int(backup_settings, cam_prop_prefix .. "port")
+                if cam_port then
+                    obs.obs_data_set_int(plugin_settings, cam_prop_prefix .. "port", cam_port)
+                end
+                local cam_mode = obs.obs_data_get_int(backup_settings, cam_prop_prefix .. "mode")
+                if cam_mode then
+                    obs.obs_data_set_int(plugin_settings, cam_prop_prefix .. "mode", cam_mode)
+                end
+                local cam_settings = obs.obs_data_get_array(backup_settings, cam_prop_prefix .. "presets")
+                if obs.obs_data_array_count(cam_settings) > 0 then
+                    obs.obs_data_set_array(plugin_settings, cam_prop_prefix .. "presets", cam_settings)
+                end
+                obs.obs_data_array_release(cam_settings)
+            end
+
+            obs.obs_data_release(backup_settings)
+            log("Settings restored from %s", backup_file)
+            return true
+        end
+    else
+        log("Unable to restore, 'backup_file' is not set.")
+    end
+end
+
+local function cb_backup_save(__props, __property, __settings)
+    local backup_file = obs.obs_data_get_string(plugin_settings, "backup_file")
+    if #backup_file > 0 then
+        obs.obs_data_set_string(plugin_settings, "backup_file", nil)
+        obs.obs_data_save_json_safe(plugin_settings, backup_file, "tmp", "bak")
+        log("Settings saved to %s", backup_file)
+        obs.obs_data_set_string(plugin_settings, "backup_file", backup_file)
+        return true
+    else
+        log("Unable to save, 'backup_file' property is not set.")
+    end
+end
+
 local function handleViscaResponses()
     for camera_id, connection in pairs(plugin_data.connections) do
         local success, msg, err, num = pcall(function() return connection:receive() end)
@@ -664,6 +720,12 @@ function script_properties()
         create_camera_controls(props, camera_id, plugin_settings)
     end
     obs.obs_property_set_modified_callback(cams, prop_set_attrs_values)
+
+    local backup_props = obs.obs_properties_create()
+    obs.obs_properties_add_path(backup_props, "backup_file", "Backup file", obs.OBS_PATH_FILE_SAVE, nil, "*.json")
+    obs.obs_properties_add_button(backup_props, "backup_save", "Create backup", cb_backup_save)
+    obs.obs_properties_add_button(backup_props, "backup_restore", "Restore from backup", cb_backup_restore)
+    obs.obs_properties_add_group(props, "backup_grp", "Backup and restore", obs.OBS_GROUP_NORMAL, backup_props)
 
     obs.obs_properties_add_bool(props, "debug_logging", "Enable verbose logging (debug)")
 

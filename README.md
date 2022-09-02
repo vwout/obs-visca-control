@@ -59,6 +59,15 @@ The preset follows a specific syntax to link a preset number to a name. The foll
 The separator can be `:`, `=` or `-`.
 Valid examples are `0: Home`, `5 = Pastor` or `Stage - 6`
 
+![Plugin backup and debug](images/docs/plugin_settings-backup.png)
+The bottom part of the plugin configuration settings section provides the ability to backup (export) the plugin settings to a 'json' file, restore (import) settings from a backup file.
+This backup only contains the plugin configuration settings, thus the camera and preset configuration.
+The scene settings are stored with each scene.
+
+In case of interaction problems between this plugin and a camera, it might be of use to enable verbose logging.
+This will provide detailed information about the plugin functionality in the `Script Log`.
+Activate verbose logging and attach the log when reaching out for help.
+
 ## Usage
 ### In a scene
 To control a camera, add a `Visca Camera Control` source to a scene.
