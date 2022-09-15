@@ -85,7 +85,7 @@ local function log(fmt, ...)
             end
         end
 
-        print(string.format("%s (%d): %s", func, line, string.format(fmt, unpack(args or {}))))
+        print(string.format("%s (%d): %s", func, line, string.format(fmt, unpack(args or {})) or "-"))
     end
 end
 
@@ -727,7 +727,7 @@ function script_properties()
     obs.obs_properties_add_button(backup_props, "backup_restore", "Restore from backup", cb_backup_restore)
     obs.obs_properties_add_group(props, "backup_grp", "Backup and restore", obs.OBS_GROUP_NORMAL, backup_props)
 
-    obs.obs_properties_add_bool(props, "debug_logging", "Enable verbose logging (debug)")
+    obs.obs_properties_add_bool(props, "debug_logging", "Enable verbose (debug) logging")
 
     return props
 end
@@ -941,7 +941,7 @@ plugin_def.get_name = function()
     return plugin_info.name
 end
 
-plugin_def.create = function(settings, source)
+plugin_def.create = function(_settings, source)
     local data = {}
     local source_sh = obs.obs_source_get_signal_handler(source)
     obs.signal_handler_connect(source_sh, "hide",
@@ -954,7 +954,7 @@ plugin_def.create = function(settings, source)
     return data
 end
 
-plugin_def.destroy = function(source)
+plugin_def.destroy = function(_data)
     for camera_id, connection in pairs(plugin_data.connections) do
         if connection ~= nil then
             connection:close()
