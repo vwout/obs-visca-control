@@ -856,11 +856,14 @@ end
 
 local function fe_callback(event, data)
     if event == obs.OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED then
+        local process_scene = false
+
         for scene_name, source_name, source_settings, source_is_visible in
             get_plugin_settings_from_scene(plugin_scene_type.Preview) do
-            if plugin_data.preview_scene ~= scene_name then
+            if process_scene or (plugin_data.preview_scene ~= scene_name) then
+                process_scene = true
                 plugin_data.preview_scene = scene_name
-                log("OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED to %s", scene_name or "?")
+                log("OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED to %s for %s", scene_name or "?", source_name or "?")
 
                 if source_settings and source_is_visible then
                     local do_action = false
