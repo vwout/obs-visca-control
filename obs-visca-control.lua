@@ -287,15 +287,10 @@ local function get_plugin_settings_from_scene(scene_type, camera_id)
 
     return function()
         local result, scene_name, source_name, source_settings, source_is_visible = coroutine.resume(plugins_visitor)
-        if result then
+        if result and scene_name and source_name then
             return scene_name, source_name, source_settings, source_is_visible
         else
-            -- Ensure source_settings refcounted copies are released
-            for _,plugin_setting in pairs(p_settings) do
-                _, _, source_settings, _ = unpack(plugin_setting)
-                obs.obs_data_release(source_settings)
-            end
-            return nil
+            return nil, nil, nil, nil
         end
      end
 end
@@ -792,10 +787,10 @@ local function camera_active_in_scene(scene_type, camera_id)
                     active = true
                 end
             end
+        end
 
-            if source_settings then
-                obs.obs_data_release(source_settings)
-            end
+        if source_settings then
+            obs.obs_data_release(source_settings)
         end
     end
 
@@ -890,10 +885,10 @@ local function fe_callback(event, data)
                         do_cam_scene_action(source_settings, scene_action_at.Start)
                     end
                 end
+            end
 
-                if source_settings then
-                    obs.obs_data_release(source_settings)
-                end
+            if source_settings then
+                obs.obs_data_release(source_settings)
             end
         end
     end
