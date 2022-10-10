@@ -717,7 +717,9 @@ function script_properties()
     obs.obs_property_set_modified_callback(cams, prop_set_attrs_values)
 
     local backup_props = obs.obs_properties_create()
-    obs.obs_properties_add_path(backup_props, "backup_file", "Backup file", obs.OBS_PATH_FILE_SAVE, nil, "*.json")
+    local backup_file = obs.obs_data_get_string(plugin_settings, "backup_file")
+    obs.obs_properties_add_path(backup_props, "backup_file", "Backup file", obs.OBS_PATH_FILE_SAVE,
+        "Configuration backup (*.json)", backup_file)
     obs.obs_properties_add_button(backup_props, "backup_save", "Create backup", cb_backup_save)
     obs.obs_properties_add_button(backup_props, "backup_restore", "Restore from backup", cb_backup_restore)
     obs.obs_properties_add_group(props, "backup_grp", "Backup and restore", obs.OBS_GROUP_NORMAL, backup_props)
