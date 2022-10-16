@@ -209,8 +209,8 @@ Visca.limits = {
 }
 
 Visca.CameraVendor = {
-    [0x0001] = "Sony",
-    [0x0003] = "Everet?",
+    [0x0001] = "Sony/NewTek",
+    [0x0003] = "Everet",
     [0x0220] = "GlowStream",
 }
 
@@ -218,6 +218,7 @@ Visca.CameraModelMeta = {}
 Visca.CameraModelMeta.__index = function(_, _) return {} end
 Visca.CameraModel = {
     [0x0001] = {
+        [0x0513] = "PTZ1 NDI",
         [0x051C] = "BRC-X400",
         [0x051D] = "BRC-X401",
         [0x0617] = "SRG-X400",
