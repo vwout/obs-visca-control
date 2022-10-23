@@ -54,6 +54,10 @@ local camera_actions = {
     Focus_Refocus = 10,
     Focus_Infinity = 11,
     PanTiltZoom_Position = 12,
+    PanTilt_Speed_Increase = 13,
+    PanTilt_Speed_Decrease = 14,
+    ZoomFocus_Speed_Increase = 15,
+    ZoomFocus_Speed_Decrease = 16,
 }
 
 local camera_action_active = {
@@ -160,6 +164,7 @@ local function create_camera_controls(cam_props, camera_id, settings)
                 obs.obs_properties_add_text(props, cam_prop_prefix .. "name", "Name", obs.OBS_TEXT_DEFAULT)
                 obs.obs_data_set_default_string(settings, cam_prop_prefix .. "name", cam_name)
             end
+
             local prop_version_info = obs.obs_properties_get(props, cam_prop_prefix .. "version_info")
             if prop_version_info == nil then
                 prop_version_info = obs.obs_properties_add_text(props, cam_prop_prefix .. "version_info",
@@ -167,20 +172,41 @@ local function create_camera_controls(cam_props, camera_id, settings)
                 obs.obs_property_set_enabled(prop_version_info, false)
                 obs.obs_data_set_default_string(settings, cam_prop_prefix .. "version_info", "Unknown (not detected)")
             end
+
             local prop_address = obs.obs_properties_get(props, cam_prop_prefix .. "address")
             if prop_address == nil then
                 obs.obs_properties_add_text(props, cam_prop_prefix .. "address", "IP Address", obs.OBS_TEXT_DEFAULT)
             end
+
             local prop_port = obs.obs_properties_get(props, cam_prop_prefix .. "port")
             if prop_port == nil then
                 obs.obs_properties_add_int(props, cam_prop_prefix .. "port", "UDP Port", 1025, 65535, 1)
                 obs.obs_data_set_default_int(settings, cam_prop_prefix .. "port", Visca.default_port)
             end
-            local prop_mode = obs.obs_properties_add_list(props, cam_prop_prefix .. "mode", "Mode",
-                obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
-            obs.obs_property_list_add_int(prop_mode, "Generic", Visca.modes.generic)
-            obs.obs_property_list_add_int(prop_mode, "PTZOptics", Visca.modes.ptzoptics)
-            obs.obs_data_set_default_int(settings, cam_prop_prefix .. "mode", Visca.modes.generic)
+
+            local prop_mode = obs.obs_properties_get(props, cam_prop_prefix .. "mode")
+            if prop_mode == nil then
+                prop_mode = obs.obs_properties_add_list(props, cam_prop_prefix .. "mode", "Mode",
+                    obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+                obs.obs_property_list_add_int(prop_mode, "Generic", Visca.modes.generic)
+                obs.obs_property_list_add_int(prop_mode, "PTZOptics", Visca.modes.ptzoptics)
+                obs.obs_data_set_default_int(settings, cam_prop_prefix .. "mode", Visca.modes.generic)
+            end
+
+            local prop_hk_pt_speed = obs.obs_properties_get(props, cam_prop_prefix .. "hk_pt_speed")
+            if prop_hk_pt_speed == nil then
+                obs.obs_properties_add_int_slider(props, cam_prop_prefix .. "hk_pt_speed", "Hotkey Pan/Tilt Speed",
+                    Visca.limits.PAN_MIN_SPEED, Visca.limits.PAN_MAX_SPEED, 1)
+                obs.obs_data_set_default_int(settings, cam_prop_prefix .. "hk_pt_speed", 0x07)
+            end
+
+            local prop_hk_zf_speed = obs.obs_properties_get(props, cam_prop_prefix .. "hk_zf_speed")
+            if prop_hk_zf_speed == nil then
+                obs.obs_properties_add_int_slider(props, cam_prop_prefix .. "hk_zf_speed", "Hotkey Zoom/Focus Speed",
+                    Visca.limits.ZOOM_MIN_SPEED, Visca.limits.ZOOM_MAX_SPEED, 1)
+                obs.obs_data_set_default_int(settings, cam_prop_prefix .. "hk_zf_speed", 0x02)
+            end
+
             local prop_presets = obs.obs_properties_get(props, cam_prop_prefix .. "presets")
             if prop_presets == nil then
                 prop_presets = obs.obs_properties_add_editable_list(props, cam_prop_prefix .. "presets", "Presets",
@@ -433,6 +459,7 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
     end
 
     log("Start cam %d action %d (args %s)", camera_id, camera_action, action_args)
+    local cam_prop_prefix = string.format("cam_%d_", camera_id)
 
     local connection = open_visca_connection(camera_id)
     if connection then
@@ -447,11 +474,23 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
         elseif camera_action == camera_actions.Preset_Recal and action_args.preset then
             connection:Cam_Preset_Recall(action_args.preset)
         elseif camera_action == camera_actions.PanTilt then
-            connection:Cam_PanTilt(action_args.direction or Visca.PanTilt_directions.stop, action_args.speed or 0x03,
-                action_args.speed or 0x03)
+            if not action_args.speed then
+                action_args.speed = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "hk_pt_speed") or
+                    Visca.limits.PAN_MIN_SPEED
+            end
+            connection:Cam_PanTilt(action_args.direction or Visca.PanTilt_directions.stop, action_args.speed,
+                action_args.speed)
         elseif camera_action == camera_actions.Zoom_In then
+            if not action_args.speed then
+                action_args.speed = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "hk_zf_speed") or
+                    Visca.limits.ZOOM_MIN_SPEED
+            end
             connection:Cam_Zoom_Tele(action_args.speed)
         elseif camera_action == camera_actions.Zoom_Out then
+            if not action_args.speed then
+                action_args.speed = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "hk_zf_speed") or
+                    Visca.limits.ZOOM_MIN_SPEED
+            end
             connection:Cam_Zoom_Wide(action_args.speed)
         elseif camera_action == camera_actions.Focus_Auto then
             connection:Cam_Focus_Mode(Visca.Focus_modes.auto)
@@ -471,8 +510,11 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
             connection:Cam_Focus_Far()
         elseif camera_action == camera_actions.PanTiltZoom_Position then
             if action_args.pan_position ~= nil and action_args.tilt_position ~= nil then
-                connection:Cam_PanTilt_Absolute(action_args.speed or 1,
-                    action_args.pan_position, action_args.tilt_position)
+                if not action_args.speed then
+                    action_args.speed = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. "hk_pt_speed") or
+                        Visca.limits.PAN_MIN_SPEED
+                end
+                connection:Cam_PanTilt_Absolute(action_args.speed, action_args.pan_position, action_args.tilt_position)
             end
             if action_args.zoom_position ~= nil then
                 connection:Cam_Zoom_To(action_args.zoom_position)
@@ -502,10 +544,30 @@ local function do_cam_action_stop(camera_id, camera_action, action_args)
 end
 
 local function cb_camera_hotkey(pressed, hotkey_data)
+    local camera_id = hotkey_data.camera_id
+    local camera_action  = hotkey_data.action
+    local cam_prop_prefix = string.format("cam_%d_", camera_id)
+
+    local function _change_cam_data_value(data_name, value_delta, value_min, value_max)
+        local value = obs.obs_data_get_int(plugin_settings, cam_prop_prefix .. data_name) or value_min
+        value = math.min(math.max(value + value_delta, value_min), value_max)
+        obs.obs_data_set_int(plugin_settings, cam_prop_prefix .. data_name, value)
+    end
+
     if pressed then
-        do_cam_action_start(hotkey_data.camera_id, hotkey_data.action, hotkey_data.action_args)
+        if camera_action == camera_actions.PanTilt_Speed_Increase then
+            _change_cam_data_value("hk_pt_speed", 1, Visca.limits.PAN_MIN_SPEED, Visca.limits.PAN_MAX_SPEED)
+        elseif camera_action == camera_actions.PanTilt_Speed_Decrease then
+            _change_cam_data_value("hk_pt_speed", -1, Visca.limits.PAN_MIN_SPEED, Visca.limits.PAN_MAX_SPEED)
+        elseif camera_action == camera_actions.ZoomFocus_Speed_Increase then
+            _change_cam_data_value("hk_zf_speed", 1, Visca.limits.ZOOM_MIN_SPEED, Visca.limits.ZOOM_MAX_SPEED)
+        elseif camera_action == camera_actions.ZoomFocus_Speed_Decrease then
+            _change_cam_data_value("hk_zf_speed", -1, Visca.limits.ZOOM_MIN_SPEED, Visca.limits.ZOOM_MAX_SPEED)
+        else
+            do_cam_action_start(camera_id, camera_action, hotkey_data.action_args)
+        end
     else
-        do_cam_action_stop(hotkey_data.camera_id, hotkey_data.action, hotkey_data.action_args)
+        do_cam_action_stop(camera_id, camera_action, hotkey_data.action_args)
     end
 end
 
@@ -644,6 +706,10 @@ function script_load(settings)
             action_args = { direction = Visca.PanTilt_directions.up } },
         { name = "tilt_down", descr = "Tilt Down", action = camera_actions.PanTilt,
             action_args = { direction = Visca.PanTilt_directions.down } },
+        { name = "pantilt_speed_incr", descr = "Increase Pan/Tilt speed",
+            action = camera_actions.PanTilt_Speed_Increase },
+        { name = "pantilt_speed_decr", descr = "Decrease Pan/Tilt speed",
+            action = camera_actions.PanTilt_Speed_Decrease },
         { name = "zoom_in", descr = "Zoom In", action = camera_actions.Zoom_In },
         { name = "zoom_out", descr = "Zoom Out", action = camera_actions.Zoom_Out },
         { name = "focus_auto", descr = "Focus mode Automatic", action = camera_actions.Focus_Auto },
@@ -652,6 +718,10 @@ function script_load(settings)
         { name = "focus_near", descr = "Focus to Near", action = camera_actions.Focus_Near },
         { name = "focus_far", descr = "Focus to Far", action = camera_actions.Focus_Far },
         { name = "focus_infinity", descr = "Focus to Infinity", action = camera_actions.Focus_Infinity },
+        { name = "zoomfocus_speed_incr", descr = "Increase Zoom/Focus speed",
+            action = camera_actions.ZoomFocus_Speed_Increase },
+        { name = "zoomfocus_speed_decr", descr = "Decrease Zoom/Focus speed",
+            action = camera_actions.ZoomFocus_Speed_Decrease },
         { name = "preset_0", descr = "Preset 0", action = camera_actions.Preset_Recal, action_args = { preset = 0 } },
         { name = "preset_1", descr = "Preset 1", action = camera_actions.Preset_Recal, action_args = { preset = 1 } },
         { name = "preset_2", descr = "Preset 2", action = camera_actions.Preset_Recal, action_args = { preset = 2 } },
