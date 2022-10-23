@@ -43,7 +43,7 @@ local plugin_scene_type = {
 local camera_actions = {
     Camera_Off = 0,
     Camera_On = 1,
-    Preset_Recal = 2,
+    Preset_Recall = 2,
     PanTilt = 3,
     Zoom_In = 4,
     Zoom_Out = 5,
@@ -471,7 +471,7 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
             plugin_data.connections[camera_id] = nil
         elseif camera_action == camera_actions.Camera_On then
             connection:Cam_Power(true)
-        elseif camera_action == camera_actions.Preset_Recal and action_args.preset then
+        elseif camera_action == camera_actions.Preset_Recall and action_args.preset then
             connection:Cam_Preset_Recall(action_args.preset)
         elseif camera_action == camera_actions.PanTilt then
             if not action_args.speed then
@@ -722,16 +722,16 @@ function script_load(settings)
             action = camera_actions.ZoomFocus_Speed_Increase },
         { name = "zoomfocus_speed_decr", descr = "Decrease Zoom/Focus speed",
             action = camera_actions.ZoomFocus_Speed_Decrease },
-        { name = "preset_0", descr = "Preset 0", action = camera_actions.Preset_Recal, action_args = { preset = 0 } },
-        { name = "preset_1", descr = "Preset 1", action = camera_actions.Preset_Recal, action_args = { preset = 1 } },
-        { name = "preset_2", descr = "Preset 2", action = camera_actions.Preset_Recal, action_args = { preset = 2 } },
-        { name = "preset_3", descr = "Preset 3", action = camera_actions.Preset_Recal, action_args = { preset = 3 } },
-        { name = "preset_4", descr = "Preset 4", action = camera_actions.Preset_Recal, action_args = { preset = 4 } },
-        { name = "preset_5", descr = "Preset 5", action = camera_actions.Preset_Recal, action_args = { preset = 5 } },
-        { name = "preset_6", descr = "Preset 6", action = camera_actions.Preset_Recal, action_args = { preset = 6 } },
-        { name = "preset_7", descr = "Preset 7", action = camera_actions.Preset_Recal, action_args = { preset = 7 } },
-        { name = "preset_8", descr = "Preset 8", action = camera_actions.Preset_Recal, action_args = { preset = 8 } },
-        { name = "preset_9", descr = "Preset 9", action = camera_actions.Preset_Recal, action_args = { preset = 9 } },
+        { name = "preset_0", descr = "Preset 0", action = camera_actions.Preset_Recall, action_args = { preset = 0 } },
+        { name = "preset_1", descr = "Preset 1", action = camera_actions.Preset_Recall, action_args = { preset = 1 } },
+        { name = "preset_2", descr = "Preset 2", action = camera_actions.Preset_Recall, action_args = { preset = 2 } },
+        { name = "preset_3", descr = "Preset 3", action = camera_actions.Preset_Recall, action_args = { preset = 3 } },
+        { name = "preset_4", descr = "Preset 4", action = camera_actions.Preset_Recall, action_args = { preset = 4 } },
+        { name = "preset_5", descr = "Preset 5", action = camera_actions.Preset_Recall, action_args = { preset = 5 } },
+        { name = "preset_6", descr = "Preset 6", action = camera_actions.Preset_Recall, action_args = { preset = 6 } },
+        { name = "preset_7", descr = "Preset 7", action = camera_actions.Preset_Recall, action_args = { preset = 7 } },
+        { name = "preset_8", descr = "Preset 8", action = camera_actions.Preset_Recall, action_args = { preset = 8 } },
+        { name = "preset_9", descr = "Preset 9", action = camera_actions.Preset_Recall, action_args = { preset = 9 } },
     }
 
     local num_cameras = obs.obs_data_get_int(settings, "num_cameras")
@@ -824,7 +824,7 @@ local function cb_camera_action_changed(props, property, data)
 
     for camera_id = 1, num_cameras do
         local visible = scene_camera == camera_id
-        if scene_action ~= camera_actions.Preset_Recal then
+        if scene_action ~= camera_actions.Preset_Recall then
             visible = false
         end
 
@@ -1047,7 +1047,7 @@ plugin_def.get_properties = function(data)
         obs.OBS_COMBO_FORMAT_INT)
     obs.obs_property_list_add_int(prop_action, "Camera Off", camera_actions.Camera_Off)
     obs.obs_property_list_add_int(prop_action, "Camera On", camera_actions.Camera_On)
-    obs.obs_property_list_add_int(prop_action, "Preset Recall", camera_actions.Preset_Recal)
+    obs.obs_property_list_add_int(prop_action, "Preset Recall", camera_actions.Preset_Recall)
     obs.obs_property_list_add_int(prop_action, "Pan/Tilt/Zoom Absolute position", camera_actions.PanTiltZoom_Position)
     obs.obs_property_list_add_int(prop_action, "Pan/Tilt Direction", camera_actions.PanTilt)
     obs.obs_property_list_add_int(prop_action, "Zoom In", camera_actions.Zoom_In)
