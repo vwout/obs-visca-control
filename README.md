@@ -44,6 +44,8 @@ For each camera a set of configuration properties will be shown:
 - _Address_: The IP address at which the camera is available.
 - _Port_: The plugin by default uses _UDP_ port `52381`. Change this port when needed, e.g. to `1259` for a PTZOptics camera.
 - _Mode_: The operating mode of the plugin. The default is `Generic`, which follows the original (Sony) Visca specification. Other supported modes are `PTZOptics`, to send commands according the PTZOptics Visca protocol.
+- _Hotkey Pan/Tilt speed_: The speed that is used for pan and tilt operations triggered by a hotkey. This speed can be manipulated by user-assignable hotkeys.
+- _Hotkey Zoom/Focus speed_: The speed that is used for zoom and focus operations triggered by a hotkey. This speed can be manipulated by user-assignable hotkeys.
 - _Presets_: The list of presets that you want to configure for the camera - these need to match the presets that are configured in the camera itself.
 
 **Important: Reload the script after changing the address, port of mode configuration!**
@@ -97,6 +99,7 @@ To permanently disable execution, without removing the configuration, change the
 ### Hotkeys
 Presets 0-9, Pan/Tilt actions up/down/left/right and Zoom in/out can also be recalled via a hotkey.
 Focus commands can only be called via a hotkey.
+The (default) speed that is configured per camera in the [configuration](#configuration) for pan/tilt and zoom/focus can be changed dynamically using a hotkey. 
 To use any of these actions, configure a hotkey in the global OBS settings.
 ![Hotkey configuration](images/docs/hotkey_settings.png)
 
