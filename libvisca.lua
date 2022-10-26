@@ -236,6 +236,181 @@ Visca.CameraModel = {
 }
 setmetatable(Visca.CameraModel, Visca.CameraModelMeta)
 
+--- @class PayloadCommand object
+Visca.PayloadCommand = {}
+Visca.PayloadCommand.__index = Visca.PayloadCommand
+
+function Visca.PayloadCommand.new()
+    local self = {
+        command_inquiry = 0x00,
+        category        = 0x00,
+        command         = 0x00,
+        arguments       = {}
+    }
+    setmetatable(self, Visca.PayloadCommand)
+    return self
+end
+
+function Visca.PayloadCommand:from_payload(payload)
+    self.command_inquiry = payload[2]
+    self.category        = payload[3] or 0
+    self.command         = payload[4] or 0
+
+    for i = 5, #payload do
+        if not ((i == #payload) and (payload[i] == Visca.packet_consts.terminator)) then
+            table.insert(self.arguments, payload[i])
+        end
+    end
+
+    return self
+end
+
+function Visca.PayloadCommand:is_command()
+    return self.command_inquiry == Visca.packet_consts.command
+end
+
+function Visca.PayloadCommand:is_inquiry()
+    return self.command_inquiry == Visca.packet_consts.inquiry
+end
+
+function Visca.PayloadCommand:is_reply()
+    return self.command_inquiry == Visca.packet_consts.reply
+end
+
+function Visca.PayloadCommand:as_string()
+    local args = '- (no arguments)'
+    if #self.arguments > 0 then
+        local descr = Visca.command_argument_names[ca_key(self.command, self.arguments[1])]
+
+        local str_a = {}
+        for i = descr and 2 or 1, #self.arguments do
+            table.insert(str_a, string.format('%02X', self.arguments[i]))
+        end
+
+        args = (descr or 'arguments') .. ' ' .. table.concat(str_a, ' ')
+    end
+
+    if self:is_command() then
+        return string.format('Command on %s: %s, %s',
+            Visca.category_names[self.category],
+            Visca.command_names[self.command] or string.format("Unknown (0x%0x)", self.command),
+            args)
+    elseif self:is_inquiry() then
+        return string.format('Inquiry on %s: %s, %s',
+            Visca.category_names[self.category],
+            Visca.command_names[self.command] or string.format("Unknown (0x%0x)", self.command),
+            args)
+    else
+        return 'Unknown'
+    end
+end
+
+--- @class PayloadReply object
+Visca.PayloadReply = {}
+Visca.PayloadReply.__index = Visca.PayloadReply
+
+function Visca.PayloadReply.new()
+    local self = {
+        reply_type    = 0x00,
+        socket_number = 0,
+        error_type    = 0x00,
+        arguments     = {}
+    }
+    setmetatable(self, Visca.PayloadReply)
+    return self
+end
+
+function Visca.PayloadReply:from_payload(payload)
+    self.reply_type    = bit.band(payload[2], 0xF0)
+    self.socket_number = bit.band(payload[2], 0x0F)
+
+    if self:is_error() then
+        self.error_type = payload[3] or 0
+    else
+        for i = 3, #payload do
+            if not ((i == #payload) and (payload[i] == Visca.packet_consts.terminator)) then
+                table.insert(self.arguments, payload[i])
+            end
+        end
+    end
+
+    return self
+end
+
+function Visca.PayloadReply:is_ack()
+    return self.reply_type == Visca.packet_consts.reply_ack
+end
+
+function Visca.PayloadReply:is_completion()
+    return self.reply_type == Visca.packet_consts.reply_completion
+end
+
+function Visca.PayloadReply:is_error()
+    return self.reply_type == Visca.packet_consts.reply_error
+end
+
+function Visca.PayloadReply:get_inquiry_data_for(inquiry_payload)
+    local _,_,category,inquiry_command = unpack(inquiry_payload)
+    local data = {}
+
+    if category == Visca.categories.interface then
+        if inquiry_command == Visca.inquiry_commands.software_version then
+            data = {
+                vendor_id   = bit.lshift(self.arguments[1] or 0, 8) + (self.arguments[2] or 0),
+                model_code  = bit.lshift(self.arguments[3] or 0, 8) + (self.arguments[4] or 0),
+                rom_version = bit.lshift(self.arguments[5] or 0, 8) + (self.arguments[6] or 0),
+            }
+        end
+    elseif category == Visca.categories.camera then
+        if inquiry_command == Visca.inquiry_commands.zoom_position then
+            data = {
+                zoom = bit.lshift(bit.band(self.arguments[1] or 0, 0x0F), 12) +
+                        bit.lshift(bit.band(self.arguments[2] or 0, 0x0F), 8) +
+                        bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 4) +
+                        bit.band(self.arguments[4] or 0, 0x0F),
+            }
+        end
+    elseif category == Visca.categories.pan_tilter then
+        if inquiry_command == Visca.inquiry_commands.pantilt_position then
+            data = {
+                pan  = bit.lshift(bit.band(self.arguments[1] or 0, 0x0F), 12) +
+                        bit.lshift(bit.band(self.arguments[2] or 0, 0x0F), 8) +
+                        bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 4) +
+                        bit.band(self.arguments[4] or 0, 0x0F),
+                tilt = bit.lshift(bit.band(self.arguments[5] or 0, 0x0F), 12) +
+                        bit.lshift(bit.band(self.arguments[6] or 0, 0x0F), 8) +
+                        bit.lshift(bit.band(self.arguments[7] or 0, 0x0F), 4) +
+                        bit.band(self.arguments[8] or 0, 0x0F)
+            }
+        end
+    end
+
+    return data
+end
+
+function Visca.PayloadReply:as_string()
+    if self:is_ack() then
+        return 'Acknowledge'
+    elseif self:is_completion() then
+        if #self.arguments > 0 then
+            local str_a = {}
+            for b = 1, #self.arguments do
+                table.insert(str_a, string.format('%02X', self.arguments[b]))
+            end
+
+            return 'Completion, inquiry: ' .. table.concat(str_a, ' ')
+        else
+            return 'Completion, command'
+        end
+    elseif self:is_error() then
+        return string.format('Error on socket %d: %s (%02x)',
+            self.socket_number,
+            Visca.error_type_names[self.error_type] or 'Unknown',
+            self.error_type)
+    else
+        return 'Unknown'
+    end
+end
 
 --- @class Message Visca Message object
 Visca.Message = {}
@@ -265,174 +440,6 @@ function Visca.Message.new()
     }
     setmetatable(msg, Visca.Message)
     return msg
-end
-
-function Visca.Message.message_payload_command(command_inquiry, category, command, arguments)
-    local _self = {
-        command_inquiry = command_inquiry or 0x00,
-        category        = category or 0x00,
-        command         = command or 0x00,
-        arguments       = arguments or {}
-    }
-
-    function _self.from_payload(payload)
-        _self.command_inquiry = payload[2]
-        _self.category        = payload[3] or 0
-        _self.command         = payload[4] or 0
-
-        for i = 5, #payload do
-            if not ((i == #payload) and (payload[i] == Visca.packet_consts.terminator)) then
-                table.insert(_self.arguments, payload[i])
-            end
-        end
-
-        return _self
-    end
-
-    function _self.is_command()
-        return _self.command_inquiry == Visca.packet_consts.command
-    end
-
-    function _self.is_inquiry()
-        return _self.command_inquiry == Visca.packet_consts.inquiry
-    end
-
-    function _self.is_reply()
-        return _self.command_inquiry == Visca.packet_consts.reply
-    end
-
-    function _self.as_string()
-        local args = '- (no arguments)'
-        if #_self.arguments > 0 then
-            local descr = Visca.command_argument_names[ca_key(_self.command, _self.arguments[1])]
-
-            local str_a = {}
-            for i = descr and 2 or 1, #_self.arguments do
-                table.insert(str_a, string.format('%02X', _self.arguments[i]))
-            end
-
-            args = (descr or 'arguments') .. ' ' .. table.concat(str_a, ' ')
-        end
-
-        if _self.is_command() then
-            return string.format('Command on %s: %s, %s',
-                Visca.category_names[_self.category],
-                Visca.command_names[_self.command] or string.format("Unknown (0x%0x)", _self.command),
-                args)
-        elseif _self.is_inquiry() then
-            return string.format('Inquiry on %s: %s, %s',
-                Visca.category_names[_self.category],
-                Visca.command_names[_self.command] or string.format("Unknown (0x%0x)", _self.command),
-                args)
-        else
-            return 'Unknown'
-        end
-    end
-
-    return _self
-end
-
-function Visca.Message.message_payload_reply()
-    local _self = {
-        reply_type    = 0x00,
-        socket_number = 0,
-        error_type    = 0x00,
-        arguments     = {}
-    }
-
-    function _self.from_payload(payload)
-        _self.reply_type    = bit.band(payload[2], 0xF0)
-        _self.socket_number = bit.band(payload[2], 0x0F)
-
-        if _self.is_error() then
-            _self.error_type = payload[3] or 0
-        else
-            for i = 3, #payload do
-                if not ((i == #payload) and (payload[i] == Visca.packet_consts.terminator)) then
-                    table.insert(_self.arguments, payload[i])
-                end
-            end
-        end
-
-        return _self
-    end
-
-    function _self.is_ack()
-        return _self.reply_type == Visca.packet_consts.reply_ack
-    end
-
-    function _self.is_completion()
-        return _self.reply_type == Visca.packet_consts.reply_completion
-    end
-
-    function _self.is_error()
-        return _self.reply_type == Visca.packet_consts.reply_error
-    end
-
-    function _self.get_inquiry_data_for(inquiry_payload)
-        local _,_,category,inquiry_command = unpack(inquiry_payload)
-        local data = {}
-
-        if category == Visca.categories.interface then
-            if inquiry_command == Visca.inquiry_commands.software_version then
-                data = {
-                    vendor_id   = bit.lshift(_self.arguments[1] or 0, 8) + (_self.arguments[2] or 0),
-                    model_code  = bit.lshift(_self.arguments[3] or 0, 8) + (_self.arguments[4] or 0),
-                    rom_version = bit.lshift(_self.arguments[5] or 0, 8) + (_self.arguments[6] or 0),
-                }
-            end
-        elseif category == Visca.categories.camera then
-            if inquiry_command == Visca.inquiry_commands.zoom_position then
-                data = {
-                    zoom = bit.lshift(bit.band(_self.arguments[1] or 0, 0x0F), 12) +
-                           bit.lshift(bit.band(_self.arguments[2] or 0, 0x0F), 8) +
-                           bit.lshift(bit.band(_self.arguments[3] or 0, 0x0F), 4) +
-                           bit.band(_self.arguments[4] or 0, 0x0F),
-                }
-            end
-        elseif category == Visca.categories.pan_tilter then
-            if inquiry_command == Visca.inquiry_commands.pantilt_position then
-                data = {
-                    pan  = bit.lshift(bit.band(_self.arguments[1] or 0, 0x0F), 12) +
-                           bit.lshift(bit.band(_self.arguments[2] or 0, 0x0F), 8) +
-                           bit.lshift(bit.band(_self.arguments[3] or 0, 0x0F), 4) +
-                           bit.band(_self.arguments[4] or 0, 0x0F),
-                    tilt = bit.lshift(bit.band(_self.arguments[5] or 0, 0x0F), 12) +
-                           bit.lshift(bit.band(_self.arguments[6] or 0, 0x0F), 8) +
-                           bit.lshift(bit.band(_self.arguments[7] or 0, 0x0F), 4) +
-                           bit.band(_self.arguments[8] or 0, 0x0F)
-                }
-            end
-        end
-
-        return data
-    end
-
-    function _self.as_string()
-        if _self.is_ack() then
-            return 'Acknowledge'
-        elseif _self.is_completion() then
-            if #_self.arguments > 0 then
-                local str_a = {}
-                for b = 1, #_self.arguments do
-                    table.insert(str_a, string.format('%02X', _self.arguments[b]))
-                end
-
-                return 'Completion, inquiry: ' .. table.concat(str_a, ' ')
-            else
-                return 'Completion, command'
-            end
-        elseif _self.is_error() then
-            return string.format('Error on socket %d: %s (%02x)',
-                                 _self.socket_number,
-                                 Visca.error_type_names[_self.error_type] or 'Unknown',
-                                 _self.error_type)
-        else
-            return 'Unknown'
-        end
-    end
-
-    return _self
 end
 
 function Visca.Message:from_data(data)
@@ -467,10 +474,10 @@ function Visca.Message:from_data(data)
 
         if (bit.band(self.payload[1] or 0, 0xF0) == 0x80) then
             -- command or inquiry
-            self.message.command = Visca.Message.message_payload_command().from_payload(self.payload)
+            self.message.command = Visca.PayloadCommand.new():from_payload(self.payload)
         elseif (bit.band(self.payload[1] or 0, 0xF0) == 0x90) then
             -- reply
-            self.message.reply = Visca.Message.message_payload_reply().from_payload(self.payload)
+            self.message.reply = Visca.PayloadReply.new():from_payload(self.payload)
         end
     end
 
@@ -546,13 +553,13 @@ function Visca.Message:dump(name, prefix, mode)
                             prefix or ''))
         print(string.format('%s                 %s',
                             prefix or '',
-                            self.message.command.as_string()))
+                            self.message.command:as_string()))
     elseif self.message.reply then
         print(string.format('%sPayload:         Reply',
                             prefix or ''))
         print(string.format('%s                 %s',
                             prefix or '',
-                            self.message.reply.as_string()))
+                            self.message.reply:as_string()))
     else
         print(string.format('%sPayload:         %s',
                             prefix or '',
@@ -730,7 +737,7 @@ end
 
 function Visca.Transmission:inquiry_data()
     if self:is_inquiry() and self.completion then
-        return self.completion.get_inquiry_data_for(self.send.payload)
+        return self.completion:get_inquiry_data_for(self.send.payload)
     else
         return nil
     end
