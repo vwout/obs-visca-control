@@ -705,13 +705,13 @@ function Visca.Transmission.new(message)
 end
 
 function Visca.Transmission:add_reply(reply)
-    if reply.is_ack() then
+    if reply:is_ack() then
         self.ack = reply
         self.ack_timestamp = obs.os_gettime_ns()
-    elseif reply.is_completion() then
+    elseif reply:is_completion() then
         self.completion = reply
         self.completion_timestamp = obs.os_gettime_ns()
-    elseif reply.is_error() then
+    elseif reply:is_error() then
         self.error = reply
         self.error_timestamp = obs.os_gettime_ns()
     end
@@ -973,11 +973,11 @@ function Visca.Connection:receive()
             if msg.message.reply then
                 local transmission = self:__transmissions_add_message(msg)
                 if transmission then
-                    if msg.message.reply.is_ack() then
+                    if msg.message.reply:is_ack() then
                         self:__exec_callback('ack', transmission)
-                    elseif msg.message.reply.is_completion() then
+                    elseif msg.message.reply:is_completion() then
                         self:__exec_callback('completion', transmission)
-                    elseif msg.message.reply.is_error() then
+                    elseif msg.message.reply:is_error() then
                         self:__exec_callback('error', transmission)
                     end
                 else
