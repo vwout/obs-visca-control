@@ -582,7 +582,7 @@ function Visca.ReplyServer.add_listener_for(address, port)
     if cnt == 0 then
         local sock_address, err, num = socket.find_first_address("*", port,
             {family="inet", socket_type="dgram", protocol="udp"})
-        if address then
+        if sock_address then
             local server
             server, err, num = socket.create("inet", "dgram", "udp")
             if server then
@@ -1305,7 +1305,7 @@ function Visca.connect(address, port)
     if connection.sock then
         return connection
     else
-        return nil, string.format("Unable to connect to %s: %s", address, connection.sock_error)
+        return nil, string.format("Unable to connect to %s: %s", address, connection.sock_err)
     end
 end
 
