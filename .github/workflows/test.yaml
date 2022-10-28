@@ -1,0 +1,29 @@
+name: Run tests
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@v2
+    - name: Build the Docker image
+      run: docker build .docker/alpine/ --tag vwout/obs-visca-control-lua:5.2
+    - name: Run linter
+      uses: addnab/docker-run-action@v3
+      with:
+        image: vwout/obs-visca-control-lua:5.2
+        options: -v ${{ github.workspace }}:/github/workspace
+        run: |
+            luacheck --config .luacheckrc \
+              libvisca.lua \
+              obs-visca-control.lua
+    - name: Run unit tests
+      uses: addnab/docker-run-action@v3
+      with:
+        image: vwout/obs-visca-control-lua:5.2
+        options: -v ${{ github.workspace }}:/github/workspace
+        run: |
+            find test -name "*_test.lua" | xargs lunit
