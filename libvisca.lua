@@ -72,6 +72,7 @@ Visca.error_type_names = {
 Visca.categories = setmetatable({
     interface    = 0x00,
     camera       = 0x04,
+    color        = 0x04,
     exposure     = 0x04,
     focus        = 0x04,
     exposure_ext = 0x05,
@@ -81,9 +82,10 @@ Visca.categories = setmetatable({
 
 Visca.category_names = {
     [Visca.categories.interface]    = "Interface",
-    [Visca.categories.camera]       = "Exposure/Focus/Camera/Zoom",
-    [Visca.categories.exposure]     = "Exposure/Focus/Camera/Zoom",
-    [Visca.categories.focus]        = "Exposure/Focus/Camera/Zoom",
+    [Visca.categories.camera]       = "Camera/Color/Exposure/Focus/Zoom",
+    [Visca.categories.color]        = "Camera/Color/Exposure/Focus/Zoom",
+    [Visca.categories.exposure]     = "Camera/Color/Exposure/Focus/Zoom",
+    [Visca.categories.focus]        = "Camera/Color/Exposure/Focus/Zoom",
     [Visca.categories.exposure_ext] = "Exposure",
     [Visca.categories.pan_tilter]   = "Pan/Tilt",
     [Visca.categories.camera_ext]   = "Exposure/Camera",
@@ -97,14 +99,16 @@ Visca.commands = setmetatable({
     pantilt_reset           = 0x05,
     zoom                    = 0x07,
     focus                   = 0x08,
+    color_gain              = 0x09,
     exposure_gain           = 0x0C,
     preset                  = 0x3F,
     zoom_direct             = 0x47,
     focus_direct            = 0x48,
-    exposure_auto           = 0x49,
+    color_gain_direct       = 0x49,
     exposure_shutter_direct = 0x4A,
     exposure_iris_direct    = 0x4B,
     exposure_gain_direct    = 0x4B,
+    brightness_direct       = 0xA1,
 }, Visca.EnumMeta)
 
 Visca.command_names = {
@@ -115,17 +119,22 @@ Visca.command_names = {
     [Visca.commands.pantilt_reset]           = "Pan/Tilt (Reset)",
     [Visca.commands.zoom]                    = "Zoom",
     [Visca.commands.focus]                   = "Focus",
+    [Visca.commands.color_gain]              = "Color Gain/Saturation",
     [Visca.commands.exposure_gain]           = "Gain",
     [Visca.commands.preset]                  = "Preset",
     [Visca.commands.zoom_direct]             = "Zoom (Direct)",
     [Visca.commands.focus_direct]            = "Focus (Direct)",
-    [Visca.commands.exposure_auto]           = "Auto Exposure",
+    [Visca.commands.color_gain_direct]       = "Color Gain/Saturation (Direct)",
     [Visca.commands.exposure_iris_direct]    = "Iris Absolute",
     [Visca.commands.exposure_shutter_direct] = "Shutter Absolute",
     [Visca.commands.exposure_gain_direct]    = "Gain Absolute",
+    [Visca.commands.brightness_direct]       = "Brightness (Direct)",
 }
 
 Visca.command_arguments = setmetatable({
+    color_gain_reset = 0x00,
+    color_gain_up    = 0x02,
+    color_gain_down  = 0x03,
     preset_recall    = 0x02,
     power_on         = 0x02,
     power_standby    = 0x03,
@@ -137,15 +146,19 @@ Visca.command_arguments = setmetatable({
 }, Visca.EnumMeta)
 
 Visca.inquiry_commands = setmetatable({
-    software_version = 0x02,
-    pantilt_position = 0x12,
-    zoom_position    = 0x47,
+    software_version    = 0x02,
+    pantilt_position    = 0x12,
+    zoom_position       = 0x47,
+    color_gain          = 0x49,
+    brightness_position = 0xA1,
 }, Visca.EnumMeta)
 
 Visca.inquiry_command_names = {
-    [Visca.inquiry_commands.software_version] = "Software Version",
-    [Visca.inquiry_commands.pantilt_position] = "Pan/Tilt (Position)",
-    [Visca.inquiry_commands.zoom_position]    = "Zoom (Position)",
+    [Visca.inquiry_commands.software_version]    = "Software Version",
+    [Visca.inquiry_commands.pantilt_position]    = "Pan/Tilt (Position)",
+    [Visca.inquiry_commands.zoom_position]       = "Zoom (Position)",
+    [Visca.inquiry_commands.color_gain]          = "Color Gain - Saturation (Level)",
+    [Visca.inquiry_commands.brightness_position] = "Brightness (Position)",
 }
 
 local function ca_key(command, argument)
@@ -153,14 +166,17 @@ local function ca_key(command, argument)
 end
 
 Visca.command_argument_names = {
-    [ca_key(Visca.commands.preset,  Visca.command_arguments.preset_recall)]   = "Absolute Position (Preset)",
-    [ca_key(Visca.commands.power,   Visca.command_arguments.power_on)]        = "On",
-    [ca_key(Visca.commands.power,   Visca.command_arguments.power_standby)]   = "Standby",
-    [ca_key(Visca.commands.focus,   Visca.command_arguments.focus_stop)]      = "Stop",
-    [ca_key(Visca.commands.focus,   Visca.command_arguments.focus_far_std)]   = "Far (standard speed)",
-    [ca_key(Visca.commands.focus,   Visca.command_arguments.focus_near_std)]  = "Near (standard speed)",
-    [ca_key(Visca.commands.focus,   Visca.command_arguments.focus_far_var)]   = "Far (variable speed)",
-    [ca_key(Visca.commands.focus,   Visca.command_arguments.focus_near_var)]  = "Near (variable speed)",
+    [ca_key(Visca.commands.color_gain, Visca.command_arguments.color_gain_reset)] = "Reset",
+    [ca_key(Visca.commands.color_gain, Visca.command_arguments.color_gain_up)]    = "Up (increment)",
+    [ca_key(Visca.commands.color_gain, Visca.command_arguments.color_gain_down)]  = "Down (decrement)",
+    [ca_key(Visca.commands.preset,     Visca.command_arguments.preset_recall)]    = "Absolute Position (Preset)",
+    [ca_key(Visca.commands.power,      Visca.command_arguments.power_on)]         = "On",
+    [ca_key(Visca.commands.power,      Visca.command_arguments.power_standby)]    = "Standby",
+    [ca_key(Visca.commands.focus,      Visca.command_arguments.focus_stop)]       = "Stop",
+    [ca_key(Visca.commands.focus,      Visca.command_arguments.focus_far_std)]    = "Far (standard speed)",
+    [ca_key(Visca.commands.focus,      Visca.command_arguments.focus_near_std)]   = "Near (standard speed)",
+    [ca_key(Visca.commands.focus,      Visca.command_arguments.focus_far_var)]    = "Far (variable speed)",
+    [ca_key(Visca.commands.focus,      Visca.command_arguments.focus_near_var)]   = "Near (variable speed)",
 }
 
 Visca.Focus_modes = setmetatable({
@@ -192,20 +208,24 @@ Visca.Zoom_subcommand = setmetatable({
 }, Visca.EnumMeta)
 
 Visca.limits = {
-    PAN_MIN_SPEED   = 0x01,
-    PAN_MAX_SPEED   = 0x18,
-    FOCUS_MIN_SPEED = 0x00,
-    FOCUS_MAX_SPEED = 0x07,
-    PAN_MIN_VALUE   = 0x00000,
-    PAN_MAX_VALUE   = 0xFFFFF,
-    TILT_MIN_VALUE  = 0x0000,
-    TILT_MAX_VALUE  = 0xFFFF,
-    TILT_MIN_SPEED  = 0x01,
-    TILT_MAX_SPEED  = 0x18,
-    ZOOM_MIN_SPEED  = 0x00,
-    ZOOM_MAX_SPEED  = 0x07,
-    ZOOM_MIN_VALUE  = 0x0000,
-    ZOOM_MAX_VALUE  = 0x4000,
+    BRIGHTNESS_MIN       = 0x00,
+    BRIGHTNESS_MAX       = 0xFF,
+    COLOR_GAIN_MIN_LEVEL = 0x00,
+    COLOR_GAIN_MAX_LEVEL = 0x0E,
+    PAN_MIN_SPEED        = 0x01,
+    PAN_MAX_SPEED        = 0x18,
+    FOCUS_MIN_SPEED      = 0x00,
+    FOCUS_MAX_SPEED      = 0x07,
+    PAN_MIN_VALUE        = 0x00000,
+    PAN_MAX_VALUE        = 0xFFFFF,
+    TILT_MIN_VALUE       = 0x0000,
+    TILT_MAX_VALUE       = 0xFFFF,
+    TILT_MIN_SPEED       = 0x01,
+    TILT_MAX_SPEED       = 0x18,
+    ZOOM_MIN_SPEED       = 0x00,
+    ZOOM_MAX_SPEED       = 0x07,
+    ZOOM_MIN_VALUE       = 0x0000,
+    ZOOM_MAX_VALUE       = 0x4000,
 }
 
 Visca.CameraVendor = {
@@ -996,6 +1016,89 @@ function Visca.Connection:receive()
     pcall(function() return self:__transmissions_process() end)
 
     return unpack(result)
+end
+
+function Visca.Connection:Cam_Color_Gain_Reset()
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.color,
+        Visca.commands.color_gain,
+        Visca.command_arguments.color_gain_reset,
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_Color_Gain(level)
+    level = math.min(math.max(level or 0, Visca.limits.COLOR_GAIN_MIN_LEVEL), Visca.limits.COLOR_GAIN_MAX_LEVEL)
+
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.color,
+        Visca.commands.color_gain_direct,
+        0x00,
+        0x00,
+        0x00,
+        bit.band(level, 0x0F),
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_Color_Gain_Inquiry()
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_inquiry
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.inquiry,
+        Visca.categories.color,
+        Visca.inquiry_commands.color_gain,
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_Brightness(position)
+    position = math.min(math.max(position or 0, Visca.limits.BRIGHTNESS_MIN), Visca.limits.BRIGHTNESS_MAX)
+
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.color,
+        Visca.commands.brightness_direct,
+        0x00,
+        0x00,
+        bit.band(bit.rshift(position, 4), 0x0F),
+        bit.band(position, 0x0F),
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+function Visca.Connection:Cam_Brightness_Inquiry()
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_inquiry
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.inquiry,
+        Visca.categories.color,
+        Visca.inquiry_commands.brightness_position,
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
 end
 
 function Visca.Connection:Cam_Focus_Mode(mode)

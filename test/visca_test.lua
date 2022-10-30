@@ -133,6 +133,20 @@ function test_cam_reset_recall_2_ptzoptics()
     lunit.assert_equal(7, recv_msg.payload_size, "invalid payload length")
 end
 
+function test_cam_color_gain()
+    local msg_color_gain_reset = run_command("Cam_Color_Gain_Reset", function() return connection:Cam_Color_Gain_Reset() end)
+    lunit.assert_equal(0x09, msg_color_gain_reset.message.command.command, "incorrect command")
+    lunit.assert_equal(1, #msg_color_gain_reset.message.command.arguments, "invalid number of arguments")
+    lunit.assert_equal(0x00, msg_color_gain_reset.message.command.arguments[1], "invalid argument")
+end
+
+function test_cam_color_gain_level()
+    local msg_color_gain = run_command("Cam_Color_Gain", function(a) return connection:Cam_Color_Gain(a) end, 0x44)
+    lunit.assert_equal(0x49, msg_color_gain.message.command.command, "incorrect command")
+    lunit.assert_equal(4, #msg_color_gain.message.command.arguments, "invalid number of arguments")
+    lunit.assert_equal(0x0E, msg_color_gain.message.command.arguments[4], "invalid argument") -- 0x44 is clipped to max value
+end
+
 function test_focus_manual()
     --lunit.assert_true(connection:set_mode(Visca.modes.generic))
 
@@ -287,6 +301,20 @@ function test_inquiry()
     local msg_inq_z = Visca.Message.new():from_data(msg_z_data):dump("msg_inq_z")
     lunit.assert_equal(5, msg_inq_z.payload_size)
     lunit.assert_equal(Visca.inquiry_commands.zoom_position, msg_inq_z.payload[4])
+
+    clear_transmission_queue(connection)
+    local msg_gain_bytes, msg_z_data = connection:Cam_Color_Gain_Inquiry()
+    lunit.assert_equal(8 + 5, msg_gain_bytes)
+    local msg_inq_gain = Visca.Message.new():from_data(msg_z_data):dump("msg_inq_gain")
+    lunit.assert_equal(5, msg_inq_gain.payload_size)
+    lunit.assert_equal(Visca.inquiry_commands.color_gain, msg_inq_gain.payload[4])
+
+    clear_transmission_queue(connection)
+    local msg_brightness_bytes, msg_z_data = connection:Cam_Brightness_Inquiry()
+    lunit.assert_equal(8 + 5, msg_brightness_bytes)
+    local msg_inq_brightness = Visca.Message.new():from_data(msg_z_data):dump("msg_inq_brightness")
+    lunit.assert_equal(5, msg_inq_brightness.payload_size)
+    lunit.assert_equal(Visca.inquiry_commands.brightness_position, msg_inq_brightness.payload[4])
 end
 
 
