@@ -58,6 +58,9 @@ local camera_actions = {
     PanTilt_Speed_Decrease = 14,
     ZoomFocus_Speed_Increase = 15,
     ZoomFocus_Speed_Decrease = 16,
+    ColorGain_Reset = 17,
+    ColorGain_Increase = 18,
+    ColorGain_Decrease = 19,
 }
 
 local camera_action_active = {
@@ -335,6 +338,7 @@ local function close_visca_connection(camera_id)
     end
 end
 
+--- @return Connection
 local function open_visca_connection(camera_id)
     local connection = plugin_data.connections[camera_id]
 
@@ -519,6 +523,8 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
             if action_args.zoom_position ~= nil then
                 connection:Cam_Zoom_To(action_args.zoom_position)
             end
+        elseif camera_action == camera_actions.ColorGain_Reset then
+            connection:Cam_Color_Gain_Reset()
         end
     end
 end
@@ -712,6 +718,7 @@ function script_load(settings)
             action = camera_actions.PanTilt_Speed_Decrease },
         { name = "zoom_in", descr = "Zoom In", action = camera_actions.Zoom_In },
         { name = "zoom_out", descr = "Zoom Out", action = camera_actions.Zoom_Out },
+        { name = "color_gain_reset", descr = "Color Gain (Saturation) Reset", action = camera_actions.ColorGain_Reset },
         { name = "focus_auto", descr = "Focus mode Automatic", action = camera_actions.Focus_Auto },
         { name = "focus_manual", descr = "Focus mode Manual", action = camera_actions.Focus_Manual },
         { name = "focus_trigger", descr = "Focus trigger Refocus", action = camera_actions.Focus_Refocus },
