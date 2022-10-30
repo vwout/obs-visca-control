@@ -382,25 +382,34 @@ function Visca.PayloadReply:get_inquiry_data_for(inquiry_payload)
             }
         end
     elseif category == Visca.categories.camera then
-        if inquiry_command == Visca.inquiry_commands.zoom_position then
+        if inquiry_command == Visca.inquiry_commands.color_gain then
+            data = {
+                color_level = bit.band(self.arguments[4] or 0, 0x0F)
+            }
+        elseif inquiry_command == Visca.inquiry_commands.brightness_position then
+            data = {
+                brightness = bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 4) +
+                             bit.band(self.arguments[4] or 0, 0x0F),
+            }
+        elseif inquiry_command == Visca.inquiry_commands.zoom_position then
             data = {
                 zoom = bit.lshift(bit.band(self.arguments[1] or 0, 0x0F), 12) +
-                        bit.lshift(bit.band(self.arguments[2] or 0, 0x0F), 8) +
-                        bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 4) +
-                        bit.band(self.arguments[4] or 0, 0x0F),
+                       bit.lshift(bit.band(self.arguments[2] or 0, 0x0F), 8) +
+                       bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 4) +
+                       bit.band(self.arguments[4] or 0, 0x0F),
             }
         end
     elseif category == Visca.categories.pan_tilter then
         if inquiry_command == Visca.inquiry_commands.pantilt_position then
             data = {
                 pan  = bit.lshift(bit.band(self.arguments[1] or 0, 0x0F), 12) +
-                        bit.lshift(bit.band(self.arguments[2] or 0, 0x0F), 8) +
-                        bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 4) +
-                        bit.band(self.arguments[4] or 0, 0x0F),
+                       bit.lshift(bit.band(self.arguments[2] or 0, 0x0F), 8) +
+                       bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 4) +
+                       bit.band(self.arguments[4] or 0, 0x0F),
                 tilt = bit.lshift(bit.band(self.arguments[5] or 0, 0x0F), 12) +
-                        bit.lshift(bit.band(self.arguments[6] or 0, 0x0F), 8) +
-                        bit.lshift(bit.band(self.arguments[7] or 0, 0x0F), 4) +
-                        bit.band(self.arguments[8] or 0, 0x0F)
+                       bit.lshift(bit.band(self.arguments[6] or 0, 0x0F), 8) +
+                       bit.lshift(bit.band(self.arguments[7] or 0, 0x0F), 4) +
+                       bit.band(self.arguments[8] or 0, 0x0F)
             }
         end
     end

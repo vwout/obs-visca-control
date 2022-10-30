@@ -222,24 +222,30 @@ function test_zoom()
     run_command("Cam_Zoom_To", function(a) return connection:Cam_Zoom_To(a) end, 0x1234)
 end
 
-function test_reply_parsing()
+function test_reply_parsing_cmd()
     local msg_cmd = Visca.Message.new():from_data("\x01\x00\x00\x07\x00\x00\x00\x03\x81\x01\x04\x3f\x02\x02\xff"):dump("msg_cmd")
     lunit.assert_equal(Visca.payload_types.visca_command, msg_cmd.payload_type)
     lunit.assert_not_nil(msg_cmd.message.command)
     lunit.assert_nil(msg_cmd.message.reply)
+end
 
+function test_reply_parsing_ack()
     local msg_ack = Visca.Message.new():from_data("\x01\x11\x00\x03\x00\x00\x00\x03\x90\x41\xff"):dump("msg_ack")
     lunit.assert_equal(Visca.payload_types.visca_reply, msg_ack.payload_type)
     lunit.assert_nil(msg_ack.message.command)
     lunit.assert_not_nil(msg_ack.message.reply)
     lunit.assert_true(msg_ack.message.reply:is_ack())
+end
 
+function test_reply_parsing_completed()
     local msg_completed = Visca.Message.new():from_data("\x01\x11\x00\x03\x00\x00\x00\x03\x90\x51\xff"):dump("msg_completed")
     lunit.assert_equal(Visca.payload_types.visca_reply, msg_completed.payload_type)
     lunit.assert_nil(msg_completed.message.command)
     lunit.assert_not_nil(msg_completed.message.reply)
     lunit.assert_true(msg_completed.message.reply:is_completion())
+end
 
+function test_reply_parsing_error()
     local msg_error = Visca.Message.new():from_data("\x01\x11\x00\x09\x00\x00\x00\x02\x90\x60\x41\xff"):dump("msg_error")
     lunit.assert_equal(Visca.payload_types.visca_reply, msg_error.payload_type)
     lunit.assert_nil(msg_error.message.command)
@@ -248,7 +254,9 @@ function test_reply_parsing()
     lunit.assert_not_nil(msg_error.message.reply)
     lunit.assert_true(msg_error.message.reply:is_error())
     lunit.assert_equal(0x41, msg_error.message.reply.error_type)
+end
 
+function test_reply_parsing_inquiry_replies()
     local msg_inq1 = Visca.Message.new():from_data("\x01\x11\x00\x0b\x00\x00\x00\x06\x90\x50\x00\x03\x04\x02\x0f\x0f\x05\x0b\xFF"):dump("msg_inq1")
     lunit.assert_equal(11, msg_inq1.payload_size)
     lunit.assert_equal(6, msg_inq1.seq_nr)
@@ -262,12 +270,15 @@ function test_reply_parsing()
     lunit.assert_not_nil(msg_inq2.message.reply)
     lunit.assert_true(msg_inq2.message.reply:is_completion())
     lunit.assert_table_equal({0x00, 0x00, 0x00, 0x00}, msg_inq2.message.reply.arguments)
-    
+end
+
+function test_reply_parsing_inquiry_software_version()
     local msg_inq_sw_10 = Visca.Message.new():from_data("\x01\x11\x00\x0a\x00\x00\x00\x01\x90\x50\x00\x03\x00\x02\x28\x01\x0d\xff"):dump("msg_inq_sw_10")
     lunit.assert_equal(10, msg_inq_sw_10.payload_size)
     lunit.assert_equal(1, msg_inq_sw_10.seq_nr)
     lunit.assert_not_nil(msg_inq_sw_10.message.reply)
     lunit.assert_true(msg_inq_sw_10.message.reply:is_completion())
+
     local msg_inq_sw_10_data = msg_inq_sw_10.message.reply:get_inquiry_data_for({0,0,Visca.categories.interface,Visca.inquiry_commands.software_version})
     lunit.assert_not_nil(msg_inq_sw_10_data)
     lunit.assert_equal(0x0003, msg_inq_sw_10_data.vendor_id)
@@ -279,11 +290,28 @@ function test_reply_parsing()
     lunit.assert_equal(1, msg_inq_sw_13.seq_nr)
     lunit.assert_not_nil(msg_inq_sw_13.message.reply)
     lunit.assert_true(msg_inq_sw_13.message.reply:is_completion())
+
     local msg_inq_sw_13_data = msg_inq_sw_13.message.reply:get_inquiry_data_for({0,0,Visca.categories.interface,Visca.inquiry_commands.software_version})
     lunit.assert_not_nil(msg_inq_sw_13_data)
     lunit.assert_equal(0x0003, msg_inq_sw_13_data.vendor_id)
     lunit.assert_equal(0x013B, msg_inq_sw_13_data.model_code)
     lunit.assert_equal(0x0870, msg_inq_sw_13_data.rom_version)
+end
+
+function test_reply_parsing_inquiry_color_level()
+    local msg_inq_color_level = Visca.Message.new():from_data("\x90\x50\x00\x00\x00\x0A\xFF"):dump("msg_inq_color_level")
+    lunit.assert_not_nil(msg_inq_color_level.message.reply)
+    local msg_inq_color_level_data = msg_inq_color_level.message.reply:get_inquiry_data_for({0,0,Visca.categories.color,Visca.inquiry_commands.color_gain})
+    lunit.assert_not_nil(msg_inq_color_level_data)
+    lunit.assert_equal(10, msg_inq_color_level_data.color_level)
+end
+
+function test_reply_parsing_inquiry_brightnes()
+    local msg_inq_brightness = Visca.Message.new():from_data("\x90\x50\x00\x00\x06\x09\xFF"):dump("msg_inq_brightness")
+    lunit.assert_not_nil(msg_inq_brightness.message.reply)
+    local msg_inq_brightness_data = msg_inq_brightness.message.reply:get_inquiry_data_for({0,0,Visca.categories.color,Visca.inquiry_commands.brightness_position})
+    lunit.assert_not_nil(msg_inq_brightness_data)
+    lunit.assert_equal(0x69, msg_inq_brightness_data.brightness)
 end
 
 function test_inquiry()
