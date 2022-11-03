@@ -61,6 +61,7 @@ local camera_actions = {
     ColorGain_Reset = 17,
     ColorGain_Increase = 18,
     ColorGain_Decrease = 19,
+    Image_Settings = 20,
 }
 
 local camera_action_active = {
@@ -525,6 +526,13 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
             end
         elseif camera_action == camera_actions.ColorGain_Reset then
             connection:Cam_Color_Gain_Reset()
+        elseif camera_action == camera_actions.Image_Settings then
+            if action_args.color_level then
+                connection:Cam_Color_Gain(action_args.color_level)
+            end
+            if action_args.brightness then
+                connection:Cam_Brightness(action_args.brightness)
+            end
         end
     end
 end
@@ -822,11 +830,25 @@ end
 
 local function cb_camera_action_changed(props, property, data)
     local changed = false
-    local num_cameras = obs.obs_property_list_item_count(property)
+    local trigger_prop_name = obs.obs_property_name(property)
+    local num_cameras = obs.obs_data_get_int(plugin_settings, "num_cameras")
     local scene_camera = obs.obs_data_get_int(data, "scene_camera")
     local scene_action = obs.obs_data_get_int(data, "scene_action")
     if num_cameras == 0 then
         scene_camera = 0
+    end
+
+    local reply_data = plugin_data.reply_data[scene_camera] or {}
+    if trigger_prop_name == "scene_action" then
+        if not reply_data.color_level or reply_data.brightness then
+            if scene_action == camera_actions.Image_Settings then
+                local connection = open_visca_connection(scene_camera)
+                if connection then
+                    connection:Cam_Color_Gain_Inquiry()
+                    connection:Cam_Brightness_Inquiry()
+                end
+            end
+        end
     end
 
     for camera_id = 1, num_cameras do
@@ -843,6 +865,31 @@ local function cb_camera_action_changed(props, property, data)
     changed = set_property_visibility(props, "scene_get_ptz_position",
         scene_action == camera_actions.PanTiltZoom_Position) or changed
     changed = set_property_visibility(props, "scene_direction", scene_action == camera_actions.PanTilt) or changed
+
+    changed = set_property_visibility(props, "scene_image_color_level",
+        scene_action == camera_actions.Image_Settings) or changed
+    local show_image_color_level = (scene_action == camera_actions.Image_Settings) and
+        (obs.obs_data_get_bool(data, "scene_image_color_level") or false)
+    changed = set_property_visibility(props, "scene_image_color_level_val", show_image_color_level) or changed
+    if show_image_color_level and (trigger_prop_name == "scene_image_color_level") and reply_data.color_level then
+        if obs.obs_data_get_default_int(data, "scene_image_color_level_val") ~= reply_data.color_level then
+            obs.obs_data_set_default_int(data, "scene_image_color_level_val", reply_data.color_level)
+            changed = true
+        end
+    end
+
+    changed = set_property_visibility(props, "scene_image_brightness",
+        scene_action == camera_actions.Image_Settings) or changed
+    local show_scene_image_brightness = (scene_action == camera_actions.Image_Settings) and
+        (obs.obs_data_get_bool(data, "scene_image_brightness") or false)
+    changed = set_property_visibility(props, "scene_image_brightness_val", show_scene_image_brightness) or changed
+    if show_scene_image_brightness and (trigger_prop_name == "scene_image_brightness") and reply_data.brightness then
+        if obs.obs_data_get_default_int(data, "scene_image_brightness_val") ~= reply_data.brightness then
+            obs.obs_data_set_default_int(data, "scene_image_brightness_val", reply_data.brightness)
+            changed = true
+        end
+    end
+
     local need_speed = (scene_action == camera_actions.PanTilt) or (scene_action == camera_actions.Zoom_In) or
         (scene_action == camera_actions.Zoom_Out) or (scene_action == camera_actions.PanTiltZoom_Position)
     changed = set_property_visibility(props, "scene_speed", need_speed) or changed
@@ -896,12 +943,20 @@ local function do_cam_scene_action(settings, action_at)
         end
 
         local action_args = {
-            preset = obs.obs_data_get_int(settings, "scene_" .. cam_prop_prefix .. "preset"),
+            preset = scene_action == camera_actions.Preset_Recall
+                       and obs.obs_data_get_int(settings, "scene_" .. cam_prop_prefix .. "preset")
+                       or nil,
             direction = obs.obs_data_get_int(settings, "scene_direction"),
             speed = obs.obs_data_get_double(settings, "scene_speed"),
             pan_position = pan_position,
             tilt_position = tilt_position,
             zoom_position = zoom_position,
+            color_level = obs.obs_data_get_bool(settings, "scene_image_color_level")
+                            and obs.obs_data_get_int(settings, "scene_image_color_level_val")
+                            or nil,
+            brightness = obs.obs_data_get_bool(settings, "scene_image_brightness")
+                            and obs.obs_data_get_int(settings, "scene_image_brightness_val")
+                            or nil,
         }
 
         local active = obs.obs_data_get_int(settings, "scene_active")
@@ -1054,6 +1109,7 @@ plugin_def.get_properties = function(data)
         obs.OBS_COMBO_FORMAT_INT)
     obs.obs_property_list_add_int(prop_action, "Camera Off", camera_actions.Camera_Off)
     obs.obs_property_list_add_int(prop_action, "Camera On", camera_actions.Camera_On)
+    obs.obs_property_list_add_int(prop_action, "Image Settings", camera_actions.Image_Settings)
     obs.obs_property_list_add_int(prop_action, "Preset Recall", camera_actions.Preset_Recall)
     obs.obs_property_list_add_int(prop_action, "Pan/Tilt/Zoom Absolute position", camera_actions.PanTiltZoom_Position)
     obs.obs_property_list_add_int(prop_action, "Pan/Tilt Direction", camera_actions.PanTilt)
@@ -1125,6 +1181,15 @@ plugin_def.get_properties = function(data)
         obs.obs_data_array_release(presets)
     end
 
+    local prop_image_color_level =
+        obs.obs_properties_add_bool(config_props, "scene_image_color_level", "Set Color Gain (Saturation)")
+    obs.obs_properties_add_int_slider(config_props, "scene_image_color_level_val", "Level",
+        Visca.limits.COLOR_GAIN_MIN_LEVEL, Visca.limits.COLOR_GAIN_MAX_LEVEL, 1)
+    local prop_image_brightness =
+        obs.obs_properties_add_bool(config_props, "scene_image_brightness", "Set Brightness")
+    obs.obs_properties_add_int_slider(config_props, "scene_image_brightness_val", "Level",
+        Visca.limits.BRIGHTNESS_MIN, Visca.limits.BRIGHTNESS_MAX, 1)
+
     obs.obs_properties_add_group(props, "scene_config_grp", "Action configuration", obs.OBS_GROUP_NORMAL, config_props)
 
     -- Action options
@@ -1141,6 +1206,8 @@ plugin_def.get_properties = function(data)
 
     --obs.obs_properties_add_button(props, "run_action", "Perform action now", cb_run_action)
 
+    obs.obs_property_set_modified_callback(prop_image_color_level, cb_camera_action_changed)
+    obs.obs_property_set_modified_callback(prop_image_brightness, cb_camera_action_changed)
     obs.obs_property_set_modified_callback(prop_camera, cb_camera_action_changed)
     obs.obs_property_set_modified_callback(prop_action, cb_camera_action_changed)
 
