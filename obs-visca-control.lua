@@ -23,6 +23,7 @@ local plugin_data = {
     connections = {},
     reply_data = {},
     hotkeys = {},
+    callback_queue = {},   -- List of callbacks: [camera_id][type][] = table(expire, f)
     suppress_scene_actions = false,
 }
 
@@ -58,10 +59,12 @@ local camera_actions = {
     PanTilt_Speed_Decrease = 14,
     ZoomFocus_Speed_Increase = 15,
     ZoomFocus_Speed_Decrease = 16,
-    ColorGain_Reset = 17,
-    ColorGain_Increase = 18,
-    ColorGain_Decrease = 19,
-    Image_Settings = 20,
+    Image_Settings = 17,
+    ColorGain_Reset = 18,
+    ColorGain_Increase = 19,
+    ColorGain_Decrease = 20,
+    Brightness_Increase = 21,
+    Brightness_Decrease = 22,
 }
 
 local camera_action_active = {
@@ -122,6 +125,38 @@ local function parse_preset_value(preset_value)
     end
 
     return preset_name, preset_id
+end
+
+local function plugin_callback_queue_add(camera_id, id, f, validity_seconds)
+    if type(plugin_data.callback_queue[camera_id]) ~= 'table' then
+        plugin_data.callback_queue[camera_id] = {}
+    end
+    if type(plugin_data.callback_queue[camera_id][id]) ~= 'table' then
+        plugin_data.callback_queue[camera_id][id] = {}
+    end
+
+    local expire = os.time() + (validity_seconds or 3)
+    table.insert(plugin_data.callback_queue[camera_id][id], {expire=expire, f=f})
+end
+
+local function plugin_callback_queue_invoke_one(camera_id, id, val)
+    if plugin_data.callback_queue[camera_id] then
+        local valid_callback = false
+        repeat
+            local callback = table.remove(plugin_data.callback_queue[camera_id][id] or {})
+            if not callback then
+                break
+            end
+
+            if callback.expire >= os.time() and type(callback.f) == 'function' then
+                valid_callback = true
+                local status,result_or_error = pcall(callback.f, val)
+                if not status then
+                    log("Callback '%s' for camera %d failed: %s", id, camera_id, result_or_error)
+                end
+            end
+        until valid_callback
+    end
 end
 
 local function prop_presets_validate(props, property, settings)
@@ -423,6 +458,14 @@ local function open_visca_connection(camera_id)
                             end
                         end
                     end
+
+                    if t_data.brightness then
+                        plugin_callback_queue_invoke_one(camera_id, 'brightness', t_data.brightness)
+                    end
+
+                    if t_data.color_level then
+                        plugin_callback_queue_invoke_one(camera_id, 'color_level', t_data.color_level)
+                    end
                 end
             end)
 
@@ -526,6 +569,38 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
             end
         elseif camera_action == camera_actions.ColorGain_Reset then
             connection:Cam_Color_Gain_Reset()
+        elseif camera_action == camera_actions.ColorGain_Increase then
+            plugin_callback_queue_add(camera_id, 'color_level', function()
+                local reply_data = plugin_data.reply_data[camera_id] or {}
+                if reply_data.color_level then
+                    connection:Cam_Color_Gain(reply_data.color_level + 1)
+                end
+            end)
+            connection:Cam_Color_Gain_Inquiry()
+        elseif camera_action == camera_actions.ColorGain_Decrease then
+            plugin_callback_queue_add(camera_id, 'color_level', function()
+                local reply_data = plugin_data.reply_data[camera_id] or {}
+                if reply_data.color_level then
+                    connection:Cam_Color_Gain(reply_data.color_level - 1)
+                end
+            end)
+            connection:Cam_Color_Gain_Inquiry()
+        elseif camera_action == camera_actions.Brightness_Increase then
+            plugin_callback_queue_add(camera_id, 'brightness', function()
+                local reply_data = plugin_data.reply_data[camera_id] or {}
+                if reply_data.brightness then
+                    connection:Cam_Color_Gain(reply_data.brightness + 1)
+                end
+            end)
+            connection:Cam_Brightness_Inquiry()
+        elseif camera_action == camera_actions.Brightness_Decrease then
+            plugin_callback_queue_add(camera_id, 'brightness', function()
+                local reply_data = plugin_data.reply_data[camera_id] or {}
+                if reply_data.brightness then
+                    connection:Cam_Color_Gain(reply_data.brightness - 1)
+                end
+            end)
+            connection:Cam_Brightness_Inquiry()
         elseif camera_action == camera_actions.Image_Settings then
             if action_args.color_level then
                 connection:Cam_Color_Gain(action_args.color_level)
@@ -727,6 +802,12 @@ function script_load(settings)
         { name = "zoom_in", descr = "Zoom In", action = camera_actions.Zoom_In },
         { name = "zoom_out", descr = "Zoom Out", action = camera_actions.Zoom_Out },
         { name = "color_gain_reset", descr = "Color Gain (Saturation) Reset", action = camera_actions.ColorGain_Reset },
+        { name = "color_gain_increment", descr = "Color Gain (Saturation) Increment",
+            action = camera_actions.ColorGain_Increase },
+        { name = "color_gain_decrement", descr = "Color Gain (Saturation) Decrement",
+            action = camera_actions.ColorGain_Decrease },
+        { name = "brightness_increment", descr = "Brightness Increment", action = camera_actions.Brightness_Increase },
+        { name = "brightness_decrement", descr = "Brightness Decrement", action = camera_actions.Brightness_Decrease },
         { name = "focus_auto", descr = "Focus mode Automatic", action = camera_actions.Focus_Auto },
         { name = "focus_manual", descr = "Focus mode Manual", action = camera_actions.Focus_Manual },
         { name = "focus_trigger", descr = "Focus trigger Refocus", action = camera_actions.Focus_Refocus },
