@@ -13,6 +13,7 @@ Besides recalling a pre-made preset, this plugin supports a few more control ope
 - Zoom (Stop, In - Tele, Out - Wide, Direct)
 - Pan/Tilt (Up, Down, Left, Right, Upleft, Upright, Downleft, Downright, Stop, Home, Reset)
 - Focus (Manual mode, Automatic mode, Trigger refocus, To infinity, Near, Far)
+- Change the camera image settings (Color gain / Saturation, Brightness)
 
 This plugin requires the camera to support Visca over IP via UDP.
 It follows the specification as designed by Sony and also supports the PTZOptics variant of Visca.
@@ -79,6 +80,11 @@ In the source settings, select the camera and the action that should be executed
 - _Camera_: The camera configured in the plugin (see [configuration](#configuration))
 - _Action_: Select the action that needs to be executed
   - When a camera supports standby mode, Power On/Off can be used in a scene to activated or suspend te camera.
+  - The action 'Image Settings' configures the Color Gain (Saturation) and/or Brightness.
+  The current setting is automatically retrieved from the camera when this action is chosen.
+  To show the value, hit the 'Defaults' button and select the 'Image Settings' action again.
+  To set one of the settings, check the configuration item and change the slider value.
+  Note: Your camera may not support all values that can be configured by the sliders.
   - When the action 'Preset Recall' is chosen, the preset also needs to be chosen.
   These presets need to be configured per camera in the script settings, see [configuration](#configuration).
   - To not recall a predefined preset, but set the camera to an absolute position, choose 'Pan/Tilt/Zoom Absolute position' and retrieve the current position of the camera to be recalled later by pressing the button.
@@ -97,7 +103,7 @@ As long as the hotkey is pressed, actions are not executed.
 To permanently disable execution, without removing the configuration, change the visibility of the `Visca Camera Control` source in the scene to 'hidden'. 
 
 ### Hotkeys
-Presets 0-9, Pan/Tilt actions up/down/left/right and Zoom in/out can also be recalled via a hotkey.
+Presets 0-9, Color Gain (Saturation) increase/decrease, Brightness increase/decrease, Pan/Tilt actions up/down/left/right and Zoom in/out can also be recalled via a hotkey.
 Focus commands can only be called via a hotkey.
 The (default) speed that is configured per camera in the [configuration](#configuration) for pan/tilt and zoom/focus can be changed dynamically using a hotkey. 
 To use any of these actions, configure a hotkey in the global OBS settings.
