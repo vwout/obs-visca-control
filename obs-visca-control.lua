@@ -416,6 +416,11 @@ local function open_visca_connection(camera_id)
                         local version_info_setting = string.format("cam_%d_version_info", camera_id)
                         obs.obs_data_set_string(plugin_settings, version_info_setting, version_info)
                         log("Set setting %s to %s", version_info_setting, version_info)
+
+                        if t_data.vendor_id == 0x0001 and t_data.model_code == 0x0513 then
+                            -- NewTek PTZ1 NDI
+                            connection.set_compatibility({ fixed_sequence_number = 1 })
+                        end
                     end
 
                     if t_data.zoom or t_data.pan or t_data.tilt then

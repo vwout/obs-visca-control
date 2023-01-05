@@ -256,6 +256,12 @@ Visca.CameraModel = {
 }
 setmetatable(Visca.CameraModel, Visca.CameraModelMeta)
 
+--- @class ViscaCompatibility Configuration table with camera compatibility options
+Visca.compatibility = {
+    fixed_sequence_number = nil, -- Set to a non-nil numeric value to keep the message sequence counter at a fixed value
+}
+
+
 --- @class PayloadCommand object
 Visca.PayloadCommand = {}
 Visca.PayloadCommand.__index = Visca.PayloadCommand
@@ -795,7 +801,8 @@ function Visca.Connection.new(address, port)
         sock_err           = sock_err,
         mode               = Visca.modes.generic,
         transmission_queue = {},  -- List of Transmission objects
-        callbacks          = {}   -- List of callbacks: [type][id] = function
+        callbacks          = {},  -- List of callbacks: [type][id] = function
+        compatibility      = {}   -- List of compatibility settings (key/value)
     }
     setmetatable(connection, Visca.Connection)
 
@@ -818,6 +825,15 @@ function Visca.Connection:set_mode(mode)
         return true
     else
         return false
+    end
+end
+
+--- @param compatibility ViscaCompatibility
+function Visca.Connection:set_compatibility(compatibility)
+    compatibility = compatibility or {}
+
+    for k,v in pairs(compatibility) do
+        self.compatibility[k] = v
     end
 end
 
@@ -972,12 +988,17 @@ end
 
 --- @param message Message
 function Visca.Connection:send(message)
-    if self.last_seq_nr < 0xFFFFFFFF then
-        self.last_seq_nr = self.last_seq_nr + 1
+    if self.compatibility.fixed_sequence_number then
+        message.seq_nr = self.compatibility.fixed_sequence_number or self.last_seq_nr
     else
-        self.last_seq_nr = 0
+        if self.last_seq_nr < 0xFFFFFFFF then
+            self.last_seq_nr = self.last_seq_nr + 1
+        else
+            self.last_seq_nr = 0
+        end
+
+        message.seq_nr = self.last_seq_nr
     end
-    message.seq_nr = self.last_seq_nr
 
     table.insert(self.transmission_queue, Visca.Transmission.new(message))
     return self:__transmissions_process()
