@@ -65,6 +65,10 @@ local camera_actions = {
     ColorGain_Decrease = 20,
     Brightness_Increase = 21,
     Brightness_Decrease = 22,
+    PanTilt_Stop = 23,  -- This action is a shorthand of action PanTilt, with direction 'stop', with the
+                        -- difference that the action is immediately executed (on keydown instead of keyup)
+    Zoom_Stop = 24,
+    Focus_Stop = 25
 }
 
 local camera_action_active = {
@@ -613,6 +617,12 @@ local function do_cam_action_start(camera_id, camera_action, action_args)
             if action_args.brightness then
                 connection:Cam_Brightness(action_args.brightness)
             end
+        elseif camera_action == camera_actions.PanTilt_Stop then
+            connection:Cam_PanTilt(Visca.PanTilt_directions.stop)
+        elseif camera_action == camera_actions.Zoom_Stop then
+            connection:Cam_Zoom_Stop()
+        elseif camera_action == camera_actions.Focus_Stop then
+            connection:Cam_Focus_Stop()
         end
     end
 end
@@ -804,8 +814,10 @@ function script_load(settings)
             action = camera_actions.PanTilt_Speed_Increase },
         { name = "pantilt_speed_decr", descr = "Decrease Pan/Tilt speed",
             action = camera_actions.PanTilt_Speed_Decrease },
+        { name = "pantilt_stop", descr = "Stop Pan/Tilt motion", action = camera_actions.PanTilt_Stop },
         { name = "zoom_in", descr = "Zoom In", action = camera_actions.Zoom_In },
         { name = "zoom_out", descr = "Zoom Out", action = camera_actions.Zoom_Out },
+        { name = "zoom_stop", descr = "Stop Zoom change", action = camera_actions.Zoom_Stop },
         { name = "color_gain_reset", descr = "Color Gain (Saturation) Reset", action = camera_actions.ColorGain_Reset },
         { name = "color_gain_increment", descr = "Color Gain (Saturation) Increment",
             action = camera_actions.ColorGain_Increase },
@@ -823,6 +835,7 @@ function script_load(settings)
             action = camera_actions.ZoomFocus_Speed_Increase },
         { name = "zoomfocus_speed_decr", descr = "Decrease Zoom/Focus speed",
             action = camera_actions.ZoomFocus_Speed_Decrease },
+        { name = "focus_stop", descr = "Stop Focus change", action = camera_actions.Focus_Stop },
         { name = "preset_0", descr = "Preset 0", action = camera_actions.Preset_Recall, action_args = { preset = 0 } },
         { name = "preset_1", descr = "Preset 1", action = camera_actions.Preset_Recall, action_args = { preset = 1 } },
         { name = "preset_2", descr = "Preset 2", action = camera_actions.Preset_Recall, action_args = { preset = 2 } },
@@ -1201,6 +1214,7 @@ plugin_def.get_properties = function(data)
     obs.obs_property_list_add_int(prop_action, "Pan/Tilt Direction", camera_actions.PanTilt)
     obs.obs_property_list_add_int(prop_action, "Zoom In", camera_actions.Zoom_In)
     obs.obs_property_list_add_int(prop_action, "Zoom Out", camera_actions.Zoom_Out)
+    obs.obs_property_list_add_int(prop_action, "Zoom Stop", camera_actions.Zoom_Stop)
     obs.obs_properties_add_group(props, "scene_action_group", "Action", obs.OBS_GROUP_NORMAL, action_props)
 
     -- Action configuration
