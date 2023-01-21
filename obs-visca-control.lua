@@ -959,6 +959,9 @@ local function cb_camera_action_changed(props, property, data)
         changed = set_property_visibility(props, string.format("scene_cam_%d_preset", camera_id), visible) or changed
     end
 
+    changed = set_property_visibility(props, "scene_config_grp", not ((scene_action == camera_actions.Camera_On) or
+        (scene_action == camera_actions.Camera_Off) or (scene_action == camera_actions.Zoom_Stop))) or changed
+
     changed = set_property_visibility(props, "scene_ptz_position",
         scene_action == camera_actions.PanTiltZoom_Position) or changed
     changed = set_property_visibility(props, "scene_get_ptz_position",
