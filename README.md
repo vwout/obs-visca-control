@@ -98,14 +98,19 @@ To delay the action execution, for example to synchronize after completion of a 
 This delay can also be used to run multiple actions in sequence
 
 Camera actions configured for a scene are executed as configured when the scene is activated or deactivated on preview or on program.
-To temporarily suppress execution of scene actions, configure the hotkey '_Suppress actions on scenes_'.
+To temporarily suppress execution of scene actions, configure the hotkey '<a name="suppress_actions_on_scenes">_Suppress actions on scenes_</a>'.
 As long as the hotkey is pressed, actions are not executed.
 To permanently disable execution, without removing the configuration, change the visibility of the `Visca Camera Control` source in the scene to 'hidden'. 
 
 ### Hotkeys
-Presets 0-9, Color Gain (Saturation) increase/decrease, Brightness increase/decrease, Pan/Tilt actions up/down/left/right and Zoom in/out can also be recalled via a hotkey.
+The plugin adds a number of hotkeys to the global OBS settings.
+All hotkeys apply to a specific camera, except for [Suppress actions on scenes](#suppress_actions_on_scenes) (see the previous paragraph).
+Presets 0-9 recall, Color Gain (Saturation) increase/decrease, Brightness increase/decrease, Pan/Tilt actions up/down/left/right and Zoom in/out can be activated via hotkey next to (in addition) to a scene action.
+These hotkeys are independent of scene actions and can be applied at any moment.
 Focus commands can only be called via a hotkey.
-The (default) speed that is configured per camera in the [configuration](#configuration) for pan/tilt and zoom/focus can be changed dynamically using a hotkey. 
+The pan/tilt and zoom/focus hotkey commands use the speed that is configured per camera in the [configuration](#configuration).
+This (default) speed can be changed dynamically using a hotkey. 
+
 To use any of these actions, configure a hotkey in the global OBS settings.
 ![Hotkey configuration](images/docs/hotkey_settings.png)
 
