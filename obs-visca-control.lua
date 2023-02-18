@@ -508,7 +508,7 @@ local function cb_plugin_hotkey(pressed, hotkey_data)
 end
 
 local function do_cam_action_start(camera_id, camera_action, action_args)
-    action_args = action_args or {}
+    action_args = {unpack(action_args or {})}
 
     -- Force close connection before sending On-command to prevent usage of a dead connection
     if camera_action == camera_actions.Camera_On then
@@ -671,7 +671,14 @@ local function cb_camera_hotkey(pressed, hotkey_data)
             do_cam_action_start(camera_id, camera_action, hotkey_data.action_args)
         end
     else
-        do_cam_action_stop(camera_id, camera_action, hotkey_data.action_args)
+        if camera_action == camera_actions.PanTilt_Speed_Increase or
+           camera_action == camera_actions.PanTilt_Speed_Decrease or
+           camera_action == camera_actions.ZoomFocus_Speed_Increase or
+           camera_action == camera_actions.ZoomFocus_Speed_Decrease then
+             -- No stop action
+        else
+            do_cam_action_stop(camera_id, camera_action, hotkey_data.action_args)
+        end
     end
 end
 
