@@ -671,12 +671,10 @@ local function cb_camera_hotkey(pressed, hotkey_data)
             do_cam_action_start(camera_id, camera_action, hotkey_data.action_args)
         end
     else
-        if camera_action == camera_actions.PanTilt_Speed_Increase or
-           camera_action == camera_actions.PanTilt_Speed_Decrease or
-           camera_action == camera_actions.ZoomFocus_Speed_Increase or
-           camera_action == camera_actions.ZoomFocus_Speed_Decrease then
-             -- No stop action
-        else
+        if not (camera_action == camera_actions.PanTilt_Speed_Increase or
+                camera_action == camera_actions.PanTilt_Speed_Decrease or
+                camera_action == camera_actions.ZoomFocus_Speed_Increase or
+                camera_action == camera_actions.ZoomFocus_Speed_Decrease) then
             do_cam_action_stop(camera_id, camera_action, hotkey_data.action_args)
         end
     end
