@@ -508,7 +508,7 @@ local function cb_plugin_hotkey(pressed, hotkey_data)
 end
 
 local function do_cam_action_start(camera_id, camera_action, action_args_in)
-    action_args = {}
+    local action_args = {}
     for k,v in pairs(action_args_in) do
         action_args[k] = v
     end
