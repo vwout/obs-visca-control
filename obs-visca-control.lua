@@ -507,8 +507,11 @@ local function cb_plugin_hotkey(pressed, hotkey_data)
     end
 end
 
-local function do_cam_action_start(camera_id, camera_action, action_args)
-    action_args = {unpack(action_args or {})}
+local function do_cam_action_start(camera_id, camera_action, action_args_in)
+    action_args = {}
+    for k,v in pairs(action_args_in) do
+        action_args[k] = v
+    end
 
     -- Force close connection before sending On-command to prevent usage of a dead connection
     if camera_action == camera_actions.Camera_On then
