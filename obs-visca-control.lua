@@ -509,7 +509,7 @@ end
 
 local function do_cam_action_start(camera_id, camera_action, action_args_in)
     local action_args = {}
-    for k,v in pairs(action_args_in) do
+    for k,v in pairs(action_args_in or {}) do
         action_args[k] = v
     end
 
