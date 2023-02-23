@@ -108,8 +108,8 @@ local function parse_preset_value(preset_value)
     local preset_name
     local preset_id
     local regex_patterns = {
-        "^(.+)%s*[:=-]%s*(%d+)$",
-        "^(%d+)%s*[:=-]%s*(.+)$"
+        "^(%g+)%s*[:=-]%s*(%d+)$",
+        "^(%d+)%s*[:=-]%s*(%g+)$"
     }
 
     for _, pattern in pairs(regex_patterns) do
