@@ -1,22 +1,14 @@
 -- Override search path to prefer stubs over others
-package.path = "test/stubs/?.lua;" .. package.path
+package.path = "test/stubs/?.lua;test/helpers/?.lua;" .. package.path
 -- Declare global that is available within OBS
 obslua = require('obslua')
 
 local lunit = require("lunit")
+require("test.helpers.lunit_extensions")
 local Visca = require("libvisca")
 
 print(_VERSION)
 
-function lunit.assert_table_equal(expected, actual)
-    lunit.assert_table(expected, "expected is not table")
-    lunit.assert_table(actual, "actual is not table")
-
-    lunit.assert_equal(#expected, #actual, "Table sizes not equal")
-    for i = 1, #expected do
-        lunit.assert_equal(expected[i], actual[i], "Mismatch at entry " .. i)
-    end
-end
 
 local function run_command(description, f, a,b,c)
     local info = debug.getinfo(2, "nl")

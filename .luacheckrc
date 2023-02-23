@@ -14,7 +14,8 @@ globals = {
     "script_load",
     "script_unload",
     "script_save",
-    "script_properties"
+    "script_properties",
+    "_T"
 }
 
 -- Ignure unused arguments

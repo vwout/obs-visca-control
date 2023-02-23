@@ -3522,7 +3522,9 @@ function obslua.obs_data_get_frames_per_second(param1, param2, param3, param4) e
 --- @param data obs_data
 --- @param name string
 --- @return number
-function obslua.obs_data_get_int(data, name) end
+function obslua.obs_data_get_int(data, name)
+    return tonumber(data[name])
+end
 
 --- :return: Json string for this object
 ---

@@ -1,4 +1,5 @@
 local obs = obslua
+local bit = require("bit")
 local Visca = require("libvisca")
 
 local plugin_info = {
@@ -1326,3 +1327,12 @@ plugin_def.get_properties = function(data)
 end
 
 obs.obs_register_source(plugin_def)
+
+if _G._UNITTEST then
+    _T = {}
+    _T._plugin_settings = plugin_settings
+    _T._plugin_data = plugin_data
+    _T._camera_actions = camera_actions
+    _T._parse_preset_value = parse_preset_value
+    _T._do_cam_action_start = do_cam_action_start
+end
