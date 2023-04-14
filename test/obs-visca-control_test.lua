@@ -39,6 +39,27 @@ function test_parse_preset_value()
     lunit.assert_equal(3, preset_id)
 end
 
+function test_parse_custom_action_red_tuning()
+    red_tuning_action1 = _T._parse_custom_action("0A 01 12 0F")
+    lunit.assert_table_equal({0x0A, 0x01, 0x12, 0x0F}, red_tuning_action1)
+    red_tuning_action2 = _T._parse_custom_action("81 0A 01 12 0F FF")
+    lunit.assert_table_equal({0x0A, 0x01, 0x12, 0x0F}, red_tuning_action2)
+end
+
+function test_parse_custom_action_none()
+    no_action1 = _T._parse_custom_action("")
+    lunit.assert_nil(no_action1)
+    no_action2 = _T._parse_custom_action(nil)
+    lunit.assert_nil(no_action2)
+end
+
+function test_parse_custom_action_tally()
+    tally_on_action1 = _T._parse_custom_action("017E010A0002")
+    lunit.assert_table_equal({0x01, 0x7E, 0x01, 0x0A, 0x00, 0x02}, tally_on_action1)
+    tally_on_action2 = _T._parse_custom_action("0x010x7E0x010x0A0x000x02")
+    lunit.assert_table_equal({0x01, 0x7E, 0x01, 0x0A, 0x00, 0x02}, tally_on_action2)
+end
+
 function test_do_cam_action_start()
     local _q = _T._plugin_data.connections[1].transmission_queue
 

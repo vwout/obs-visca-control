@@ -1050,6 +1050,29 @@ function Visca.Connection:receive()
     return unpack(result)
 end
 
+function Visca.Connection:Send_Raw_Command(data)
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.terminator
+    }
+
+    if type(data) == "table" then
+        for i,v in ipairs(data) do
+            table.insert(msg.payload, i+1, v)
+        end
+    elseif type(data) == "string" then
+        for i = 1, #data do
+            table.insert(msg.payload, i+1, string.byte(data, i))
+        end
+    else
+        table.insert(msg.payload, 2, data)
+    end
+
+    return self:send(msg)
+end
+
 function Visca.Connection:Cam_Color_Gain_Reset()
     local msg = Visca.Message.new()
     msg.payload_type = Visca.payload_types.visca_command

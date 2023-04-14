@@ -69,7 +69,8 @@ local camera_actions = {
     PanTilt_Stop = 23,  -- This action is a shorthand of action PanTilt, with direction 'stop', with the
                         -- difference that the action is immediately executed (on keydown instead of keyup)
     Zoom_Stop = 24,
-    Focus_Stop = 25
+    Focus_Stop = 25,
+    Custom = 26,
 }
 
 local camera_action_active = {
@@ -130,6 +131,25 @@ local function parse_preset_value(preset_value)
     end
 
     return preset_name, preset_id
+end
+
+local function parse_custom_action(action)
+    local action_cmd = nil
+    local regex_pattern = "([0-9A-F][0-9A-F])"
+
+    if action and #action > 0 then
+        action_cmd = {}
+        for b in string.gmatch(action, regex_pattern) do
+            table.insert(action_cmd, tonumber(b, 16))
+        end
+
+        if bit.band(action_cmd[1], 0xF0) == 0x80 and action_cmd[#action_cmd] == 0xFF then
+            table.remove(action_cmd,1)
+            table.remove(action_cmd)
+        end
+    end
+
+    return action_cmd
 end
 
 local function plugin_callback_queue_add(camera_id, id, f, validity_seconds)
@@ -627,6 +647,8 @@ local function do_cam_action_start(camera_id, camera_action, action_args_in)
             connection:Cam_Zoom_Stop()
         elseif camera_action == camera_actions.Focus_Stop then
             connection:Cam_Focus_Stop()
+        elseif camera_action == camera_actions.Custom and action_args.custom_start then
+            connection:Send_Raw_Command(action_args.custom_start)
         end
     end
 end
@@ -647,6 +669,8 @@ local function do_cam_action_stop(camera_id, camera_action, action_args)
             connection:Cam_Focus_Stop()
         elseif camera_action == camera_actions.Focus_Far then
             connection:Cam_Focus_Stop()
+        elseif camera_action == camera_actions.Custom and action_args.custom_stop then
+            connection:Send_Raw_Command(action_args.custom_stop)
         end
     end
 end
@@ -1005,6 +1029,10 @@ local function cb_camera_action_changed(props, property, data)
         (scene_action == camera_actions.Zoom_Out) or (scene_action == camera_actions.PanTiltZoom_Position)
     changed = set_property_visibility(props, "scene_speed", need_speed) or changed
 
+    changed = set_property_visibility(props, "scene_custom_info", scene_action == camera_actions.Custom) or changed
+    changed = set_property_visibility(props, "scene_custom_start", scene_action == camera_actions.Custom) or changed
+    changed = set_property_visibility(props, "scene_custom_stop", scene_action == camera_actions.Custom) or changed
+
     return changed
 end
 
@@ -1068,6 +1096,8 @@ local function do_cam_scene_action(settings, action_at)
             brightness = obs.obs_data_get_bool(settings, "scene_image_brightness")
                             and obs.obs_data_get_int(settings, "scene_image_brightness_val")
                             or nil,
+            custom_start = parse_custom_action(obs.obs_data_get_string(settings, "scene_custom_start")),
+            custom_stop = parse_custom_action(obs.obs_data_get_string(settings, "scene_custom_stop")),
         }
 
         local active = obs.obs_data_get_int(settings, "scene_active")
@@ -1227,6 +1257,7 @@ plugin_def.get_properties = function(data)
     obs.obs_property_list_add_int(prop_action, "Zoom In", camera_actions.Zoom_In)
     obs.obs_property_list_add_int(prop_action, "Zoom Out", camera_actions.Zoom_Out)
     obs.obs_property_list_add_int(prop_action, "Zoom Stop", camera_actions.Zoom_Stop)
+    obs.obs_property_list_add_int(prop_action, "Custom", camera_actions.Custom)
     obs.obs_properties_add_group(props, "scene_action_group", "Action", obs.OBS_GROUP_NORMAL, action_props)
 
     -- Action configuration
@@ -1302,6 +1333,16 @@ plugin_def.get_properties = function(data)
     obs.obs_properties_add_int_slider(config_props, "scene_image_brightness_val", "Level",
         Visca.limits.BRIGHTNESS_MIN, Visca.limits.BRIGHTNESS_MAX, 1)
 
+    obs.obs_properties_add_text(config_props, "scene_custom_info",
+        "In the start and stop command entries, enter the Visca command that must be send to the camera when a " ..
+        "scene loads (start) or unloads (stops), as sequence of hexadecimal values. \n" ..
+        "The hexadecimal values may be space separated and may use 0x prefixes, but this is not required. \n" ..
+        "Example: \n- Set tally light on: '01 7E 01 0A 00 02' \n" ..
+        "The command values should not include the (first) address (8x) and the (last) termination (FF) byte.",
+        obs.OBS_TEXT_INFO)
+    obs.obs_properties_add_text(config_props, "scene_custom_start", "Start command", obs.OBS_TEXT_DEFAULT)
+    obs.obs_properties_add_text(config_props, "scene_custom_stop", "Stop command", obs.OBS_TEXT_DEFAULT)
+
     obs.obs_properties_add_group(props, "scene_config_grp", "Action configuration", obs.OBS_GROUP_NORMAL, config_props)
 
     -- Action options
@@ -1330,9 +1371,13 @@ obs.obs_register_source(plugin_def)
 
 if _G._UNITTEST then
     _T = {}
+    _T.plugin_def = plugin_def
+
+    -- Internal locals
     _T._plugin_settings = plugin_settings
     _T._plugin_data = plugin_data
     _T._camera_actions = camera_actions
     _T._parse_preset_value = parse_preset_value
+    _T._parse_custom_action = parse_custom_action
     _T._do_cam_action_start = do_cam_action_start
 end

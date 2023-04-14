@@ -337,5 +337,12 @@ function test_inquiry()
     lunit.assert_equal(Visca.inquiry_commands.brightness_position, msg_inq_brightness.payload[4])
 end
 
+function test_send_raw_command()
+    lunit.assert_true(connection:set_mode(Visca.modes.ptzoptics))
+    local msg_tally_bytes, msg_tally_data = connection:Send_Raw_Command({0x01, 0x7E, 0x01, 0x0A, 0x00, 0x02})
+    lunit.assert_equal(8, msg_tally_bytes)
+    msg_tally = Visca.Message.new():from_data(msg_tally_data)
+    lunit.assert_table_equal({0x81, 0x01, 0x7E, 0x01, 0x0A, 0x00, 0x02, 0xFF}, msg_tally.payload)
+end
 
 lunit.main(...)
