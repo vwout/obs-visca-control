@@ -70,7 +70,7 @@ local camera_actions = {
                         -- difference that the action is immediately executed (on keydown instead of keyup)
     Zoom_Stop = 24,
     Focus_Stop = 25,
-    Custom = 26,
+    Custom_Command = 26,
 }
 
 local camera_action_active = {
@@ -647,7 +647,7 @@ local function do_cam_action_start(camera_id, camera_action, action_args_in)
             connection:Cam_Zoom_Stop()
         elseif camera_action == camera_actions.Focus_Stop then
             connection:Cam_Focus_Stop()
-        elseif camera_action == camera_actions.Custom and action_args.custom_start then
+        elseif camera_action == camera_actions.Custom_Command and action_args.custom_start then
             connection:Send_Raw_Command(action_args.custom_start)
         end
     end
@@ -669,7 +669,7 @@ local function do_cam_action_stop(camera_id, camera_action, action_args)
             connection:Cam_Focus_Stop()
         elseif camera_action == camera_actions.Focus_Far then
             connection:Cam_Focus_Stop()
-        elseif camera_action == camera_actions.Custom and action_args.custom_stop then
+        elseif camera_action == camera_actions.Custom_Command and action_args.custom_stop then
             connection:Send_Raw_Command(action_args.custom_stop)
         end
     end
@@ -1257,7 +1257,7 @@ plugin_def.get_properties = function(data)
     obs.obs_property_list_add_int(prop_action, "Zoom In", camera_actions.Zoom_In)
     obs.obs_property_list_add_int(prop_action, "Zoom Out", camera_actions.Zoom_Out)
     obs.obs_property_list_add_int(prop_action, "Zoom Stop", camera_actions.Zoom_Stop)
-    obs.obs_property_list_add_int(prop_action, "Custom", camera_actions.Custom)
+    obs.obs_property_list_add_int(prop_action, "Custom Command", camera_actions.Custom)
     obs.obs_properties_add_group(props, "scene_action_group", "Action", obs.OBS_GROUP_NORMAL, action_props)
 
     -- Action configuration
@@ -1336,8 +1336,9 @@ plugin_def.get_properties = function(data)
     obs.obs_properties_add_text(config_props, "scene_custom_info",
         "In the start and stop command entries, enter the Visca command that must be send to the camera when a " ..
         "scene loads (start) or unloads (stops), as sequence of hexadecimal values. \n" ..
-        "The hexadecimal values may be space separated and may use 0x prefixes, but this is not required. \n" ..
+        "The command codes can be camera specific and usually are found in the manual of the camera. \n" ..
         "Example: \n- Set tally light on: '01 7E 01 0A 00 02' \n" ..
+        "The hexadecimal values may be space separated and may use 0x prefixes, but this is not required. \n" ..
         "The command values should not include the (first) address (8x) and the (last) termination (FF) byte.",
         obs.OBS_TEXT_INFO)
     obs.obs_properties_add_text(config_props, "scene_custom_start", "Start command", obs.OBS_TEXT_DEFAULT)
