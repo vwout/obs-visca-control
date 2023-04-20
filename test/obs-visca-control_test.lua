@@ -1,3 +1,5 @@
+require("luacov")
+
 -- Override search path to prefer stubs over others
 package.path = "test/stubs/?.lua;test/helpers/?.lua;" .. package.path
 -- Declare global that is available within OBS

@@ -1,7 +1,7 @@
 FROM alpine:3.16
 
 ARG LUA_VERSION=5.2
-ARG LUA_MODULES="lunit luacheck"
+ARG LUA_MODULES="lunit luacheck luacov luacov-html"
 
 RUN apk add --no-cache \
         bash \
