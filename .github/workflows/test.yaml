@@ -27,3 +27,4 @@ jobs:
         options: -v ${{ github.workspace }}:/github/workspace
         run: |
             find test -name "*_test.lua" | xargs lunit
+            luacov obs-visca-control.lua libvisca.lua
