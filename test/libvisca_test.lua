@@ -1,3 +1,5 @@
+require("luacov")
+
 -- Override search path to prefer stubs over others
 package.path = "test/stubs/?.lua;test/helpers/?.lua;" .. package.path
 -- Declare global that is available within OBS
@@ -323,16 +325,16 @@ function test_inquiry()
     lunit.assert_equal(Visca.inquiry_commands.zoom_position, msg_inq_z.payload[4])
 
     clear_transmission_queue(connection)
-    local msg_gain_bytes, msg_z_data = connection:Cam_Color_Gain_Inquiry()
+    local msg_gain_bytes, msg_gain_data = connection:Cam_Color_Gain_Inquiry()
     lunit.assert_equal(8 + 5, msg_gain_bytes)
-    local msg_inq_gain = Visca.Message.new():from_data(msg_z_data):dump("msg_inq_gain")
+    local msg_inq_gain = Visca.Message.new():from_data(msg_gain_data):dump("msg_inq_gain")
     lunit.assert_equal(5, msg_inq_gain.payload_size)
     lunit.assert_equal(Visca.inquiry_commands.color_gain, msg_inq_gain.payload[4])
 
     clear_transmission_queue(connection)
-    local msg_brightness_bytes, msg_z_data = connection:Cam_Brightness_Inquiry()
+    local msg_brightness_bytes, msg_brightness_data = connection:Cam_Brightness_Inquiry()
     lunit.assert_equal(8 + 5, msg_brightness_bytes)
-    local msg_inq_brightness = Visca.Message.new():from_data(msg_z_data):dump("msg_inq_brightness")
+    local msg_inq_brightness = Visca.Message.new():from_data(msg_brightness_data):dump("msg_inq_brightness")
     lunit.assert_equal(5, msg_inq_brightness.payload_size)
     lunit.assert_equal(Visca.inquiry_commands.brightness_position, msg_inq_brightness.payload[4])
 end

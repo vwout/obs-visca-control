@@ -38,7 +38,7 @@ In OBS choose *Scripts* in the *Tools* menu and click the "+" symbol. Navigate t
 Before the plugin can be used in a scene, it requires configuration in the `Script` dialog.
 ![Plugin configuration](images/docs/plugin_settings.png)
 
-Start by enumerating the number of cameras cameras that you want to control.
+Start by enumerating the number of cameras that you want to control.
 For each camera a set of configuration properties will be shown:
 - _Name_: A friendly name for easy recognition of the camera.
 - _Version Info_: The model, type and firmware (in case available and supported).
@@ -66,7 +66,7 @@ The separator can be `:`, `=` or `-`.
 Valid examples are `0: Home`, `5 = Pastor` or `Stage - 6`
 
 ![Plugin backup and debug](images/docs/plugin_settings-backup.png)
-The bottom part of the plugin configuration settings section provides the ability to backup (export) the plugin settings to a 'json' file, restore (import) settings from a backup file.
+The bottom part of the plugin configuration settings section provides the ability to back up (export) the plugin settings to a 'json' file, restore (import) settings from a backup file.
 This backup only contains the plugin configuration settings, thus the camera and preset configuration.
 The scene settings are stored with each scene.
 
