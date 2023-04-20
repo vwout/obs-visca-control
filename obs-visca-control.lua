@@ -1334,8 +1334,8 @@ plugin_def.get_properties = function(data)
         Visca.limits.BRIGHTNESS_MIN, Visca.limits.BRIGHTNESS_MAX, 1)
 
     obs.obs_properties_add_text(config_props, "scene_custom_info",
-        "In the start and stop command entries, enter the Visca command that must be send to the camera when a " ..
-        "scene loads (start) or unloads (stops), as sequence of hexadecimal values. \n" ..
+        "In the start and stop command entries, enter the Visca command that must be sent to the camera when a " ..
+        "scene loads (start) or unloads (stop), as sequence of hexadecimal values. \n" ..
         "The command codes can be camera specific and usually are found in the manual of the camera. \n" ..
         "Example: \n- Set tally light on: '01 7E 01 0A 00 02' \n" ..
         "The hexadecimal values may be space separated and may use 0x prefixes, but this is not required. \n" ..

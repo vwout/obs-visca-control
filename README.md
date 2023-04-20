@@ -43,7 +43,10 @@ For each camera a set of configuration properties will be shown:
 - _Name_: A friendly name for easy recognition of the camera.
 - _Version Info_: The model, type and firmware (in case available and supported).
 - _Address_: The IP address at which the camera is available.
-- _Port_: The plugin by default uses _UDP_ port `52381`. Change this port when needed, e.g. to `1259` for a PTZOptics camera.
+- _Port_: The plugin by default uses _UDP_ port `52381`. 
+Change this port when needed, e.g. to `1259` for a PTZOptics camera. 
+Setting the port does not change the Visca dialect ('protocol') that is used.
+Also check the _Mode_.
 - _Mode_: The operating mode of the plugin. The default is `Generic`, which follows the original (Sony) Visca specification. Other supported modes are `PTZOptics`, to send commands according the PTZOptics Visca protocol.
 - _Hotkey Pan/Tilt speed_: The speed that is used for pan and tilt operations triggered by a hotkey. This speed can be manipulated by user-assignable hotkeys.
 - _Hotkey Zoom/Focus speed_: The speed that is used for zoom and focus operations triggered by a hotkey. This speed can be manipulated by user-assignable hotkeys.
@@ -79,18 +82,21 @@ To control a camera, add a `Visca Camera Control` source to a scene.
 In the source settings, select the camera and the action that should be executed.
 - _Camera_: The camera configured in the plugin (see [configuration](#configuration))
 - _Action_: Select the action that needs to be executed
-  - When a camera supports standby mode, Power On/Off can be used in a scene to activated or suspend te camera.
-  - The action 'Image Settings' configures the Color Gain (Saturation) and/or Brightness.
+  - When a camera supports standby mode, `Power On/Off` can be used in a scene to activated or suspend te camera.
+  - The action `Image Settings` configures the Color Gain (Saturation) and/or Brightness.
   The current setting is automatically retrieved from the camera when this action is chosen.
   To show the value, hit the 'Defaults' button and select the 'Image Settings' action again.
   To set one of the settings, check the configuration item and change the slider value.
   Note: Your camera may not support all values that can be configured by the sliders.
-  - When the action 'Preset Recall' is chosen, the preset also needs to be chosen.
+  - When the action `Preset Recall` is chosen, the preset also needs to be chosen.
   These presets need to be configured per camera in the script settings, see [configuration](#configuration).
-  - To not recall a predefined preset, but set the camera to an absolute position, choose 'Pan/Tilt/Zoom Absolute position' and retrieve the current position of the camera to be recalled later by pressing the button.
-  - For the action 'Pan/Tilt Direction', the camera will move in the configured direction. The direction and speed also needs to be selected. 
+  - To not recall a predefined preset, but set the camera to an absolute position, choose `Pan/Tilt/Zoom Absolute position` and retrieve the current position of the camera to be recalled later by pressing the button.
+  - For the action `Pan/Tilt Direction`, the camera will move in the configured direction. The direction and speed also needs to be selected. 
   Note that this action does not use a specific starting position, the pan action starts from the camera position that is actual when the scene becomes active.
-  - For 'Zoom In' and 'Zoom Out', the animation speeds determines the zoom speed.
+  - For `Zoom In` and `Zoom Out`, the animation speeds determines the zoom speed.
+  - The `Custom Command` action allows sending a custom Visca command to the camera at activation or deactivation of a scene.
+This command must be in the documentation of the camera and consists of a series of hexadecimal values.
+When these values are not know, or the manual is not understood, don't use this action.
 - _Action Active_: The camera action is executed when either the scene in which the source is used becomes active in preview, in program, or both, depending on the selected entry in the selection.
 - To make sure that a preview does not change settings of a camera that is on program, select the checkbox 'Run action on preview only when the camera is not active on program'.
 - _Delay Action_: When not set (left to 0), the action is immediately executed when the scene becomes active.
@@ -98,7 +104,7 @@ To delay the action execution, for example to synchronize after completion of a 
 This delay can also be used to run multiple actions in sequence
 
 Camera actions configured for a scene are executed as configured when the scene is activated or deactivated on preview or on program.
-To temporarily suppress execution of scene actions, configure the hotkey '<a name="suppress_actions_on_scenes">_Suppress actions on scenes_</a>'.
+To temporarily suppress execution of scene actions, configure the hotkey '<a name="suppress_actions_on_scenes">`Suppress actions on scenes`</a>'.
 As long as the hotkey is pressed, actions are not executed.
 To permanently disable execution, without removing the configuration, change the visibility of the `Visca Camera Control` source in the scene to 'hidden'. 
 
