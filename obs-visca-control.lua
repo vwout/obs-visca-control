@@ -1029,9 +1029,10 @@ local function cb_camera_action_changed(props, property, data)
         (scene_action == camera_actions.Zoom_Out) or (scene_action == camera_actions.PanTiltZoom_Position)
     changed = set_property_visibility(props, "scene_speed", need_speed) or changed
 
-    changed = set_property_visibility(props, "scene_custom_info", scene_action == camera_actions.Custom_Command) or changed
-    changed = set_property_visibility(props, "scene_custom_start", scene_action == camera_actions.Custom_Command) or changed
-    changed = set_property_visibility(props, "scene_custom_stop", scene_action == camera_actions.Custom_Command) or changed
+    local is_custom_command = scene_action == camera_actions.Custom_Command
+    changed = set_property_visibility(props, "scene_custom_info", is_custom_command) or changed
+    changed = set_property_visibility(props, "scene_custom_start", is_custom_command) or changed
+    changed = set_property_visibility(props, "scene_custom_stop", is_custom_command) or changed
 
     return changed
 end
