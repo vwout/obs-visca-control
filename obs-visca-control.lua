@@ -1029,9 +1029,9 @@ local function cb_camera_action_changed(props, property, data)
         (scene_action == camera_actions.Zoom_Out) or (scene_action == camera_actions.PanTiltZoom_Position)
     changed = set_property_visibility(props, "scene_speed", need_speed) or changed
 
-    changed = set_property_visibility(props, "scene_custom_info", scene_action == camera_actions.Custom) or changed
-    changed = set_property_visibility(props, "scene_custom_start", scene_action == camera_actions.Custom) or changed
-    changed = set_property_visibility(props, "scene_custom_stop", scene_action == camera_actions.Custom) or changed
+    changed = set_property_visibility(props, "scene_custom_info", scene_action == camera_actions.Custom_Command) or changed
+    changed = set_property_visibility(props, "scene_custom_start", scene_action == camera_actions.Custom_Command) or changed
+    changed = set_property_visibility(props, "scene_custom_stop", scene_action == camera_actions.Custom_Command) or changed
 
     return changed
 end
@@ -1257,7 +1257,7 @@ plugin_def.get_properties = function(data)
     obs.obs_property_list_add_int(prop_action, "Zoom In", camera_actions.Zoom_In)
     obs.obs_property_list_add_int(prop_action, "Zoom Out", camera_actions.Zoom_Out)
     obs.obs_property_list_add_int(prop_action, "Zoom Stop", camera_actions.Zoom_Stop)
-    obs.obs_property_list_add_int(prop_action, "Custom Command", camera_actions.Custom)
+    obs.obs_property_list_add_int(prop_action, "Custom Command", camera_actions.Custom_Command)
     obs.obs_properties_add_group(props, "scene_action_group", "Action", obs.OBS_GROUP_NORMAL, action_props)
 
     -- Action configuration
