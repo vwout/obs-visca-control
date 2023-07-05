@@ -527,6 +527,10 @@ function Visca.Message:from_data(data)
     return self
 end
 
+--- Generate a data bytestring of this message
+---
+--- @param mode ViscaModes
+--- @return string
 function Visca.Message:to_data(mode)
     mode = mode or Visca.modes.generic
     local payload_size = (self.payload_size > 0) and self.payload_size or #self.payload
@@ -557,6 +561,8 @@ function Visca.Message:to_data(mode)
     return table.concat(str_a)
 end
 
+--- Generate a human readable representation in hex of this message
+---
 --- @param mode ViscaModes
 function Visca.Message:as_string(mode)
     mode = mode or Visca.modes.generic
@@ -897,7 +903,10 @@ function Visca.Connection:unregister_on_timeout_callback(id)
     self:__unregister_callback('timeout', id)
 end
 
+--- Transmits one Message to the camera on this connection
+---
 --- @param message Message
+--- @return number, string
 function Visca.Connection:__transmit(message)
     local data_to_send = message:to_data(self.mode)
     local sock = self.sock
@@ -939,6 +948,11 @@ function Visca.Connection:__transmissions_add_message(msg)
     return transmission
 end
 
+--- Process the message queue
+--- Sends callback notifications for timed out messages
+--- and transmit at most one next queued message when not responses are awaited.
+---
+--- @return number, string
 function Visca.Connection:__transmissions_process()
     local transmit_size = 0
     local transmit_data
@@ -994,7 +1008,10 @@ function Visca.Connection:close()
     end
 end
 
+--- Queue a Visca Message for transmission and process the queue
+---
 --- @param message Message
+--- @return number, string
 function Visca.Connection:send(message)
     if self.compatibility.fixed_sequence_number then
         message.seq_nr = self.compatibility.fixed_sequence_number or self.last_seq_nr
@@ -1256,6 +1273,10 @@ function Visca.Connection:Cam_Power(on)
     return self:send(msg)
 end
 
+--- Recall a preset stored in the camera
+---
+--- @param preset number The preset number (typically starting with the first preset at 1)
+--- @return number, string
 function Visca.Connection:Cam_Preset_Recall(preset)
     if self.compatibility.preset_nr_offset then
         preset = preset - self.compatibility.preset_nr_offset
@@ -1477,7 +1498,13 @@ function Visca.Connection:Cam_Software_Version_Inquiry()
     return self:send(msg)
 end
 
+--- Connect to a Visca capable camera
+---
+--- @param address string The IP address or DNS of the camera
+--- @param port number    The Visca control port of the camera
+--- @return Connection
 function Visca.connect(address, port)
+    ---@type Connection
     local connection = Visca.Connection.new(address, port)
     if connection.sock then
         return connection

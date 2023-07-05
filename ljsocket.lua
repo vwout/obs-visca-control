@@ -1153,6 +1153,7 @@ do
         end
     end
 
+    --- Returns the name (address) and port of the connected peer
     function meta:get_peer_name()
         local data = ffi.new("struct sockaddr_in")
         local len = ffi.new("unsigned int[1]", ffi.sizeof(data))
@@ -1163,6 +1164,7 @@ do
         return ffi.string(socket.inet_ntoa(data.sin_addr)), socket.ntohs(data.sin_port)
     end
 
+    --- Returns name (address) and port to which the socket is bound
     function meta:get_name()
         local data = ffi.new("struct sockaddr_in")
         local len = ffi.new("unsigned int[1]", ffi.sizeof(data))
