@@ -259,6 +259,10 @@ setmetatable(Visca.CameraModel, Visca.CameraModelMeta)
 --- @class ViscaCompatibility Configuration table with camera compatibility options
 Visca.compatibility = {
     fixed_sequence_number = nil, -- Set to a non-nil numeric value to keep the message sequence counter at a fixed value
+    preset_nr_offset = nil,      -- Set to non-nil to to compensate for the preset numbering in the camera.
+                                 -- When the first preset is 1, leave it nil (or set to 0).
+                                 -- When the first preset is 0, set the offset to 1.
+                                 -- The preset recalled at the camera is 'preset - <preset_nr_offset>'
 }
 
 
@@ -1249,6 +1253,10 @@ function Visca.Connection:Cam_Power(on)
 end
 
 function Visca.Connection:Cam_Preset_Recall(preset)
+    if self.compatibility.preset_nr_offset then
+        preset = preset - self.compatibility.preset_nr_offset
+    end
+    preset = math.max(math.min(preset or 0, 127), 0)
     local msg = Visca.Message.new()
     msg.payload_type = Visca.payload_types.visca_command
     msg.payload = {

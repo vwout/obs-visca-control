@@ -41,6 +41,7 @@ end
 
 module("libvisca_test", lunit.testcase, package.seeall)
 
+--- @type: Visca.Connection
 local connection
 
 function setup()
@@ -118,13 +119,22 @@ function test_cam_reset_recall_2_generic()
     connection:Cam_Preset_Recall(2)
 end
 
-function test_cam_reset_recall_2_ptzoptics()
+function test_cam_reset_recall_8_ptzoptics()
     lunit.assert_true(connection:set_mode(Visca.modes.ptzoptics))
-    local len_err_num, data = connection:Cam_Preset_Recall(2)
+    local len_err_num, data = connection:Cam_Preset_Recall(8)
     lunit.assert_equal(7, len_err_num, "invalid length") -- Only data, no header
-    local recv_msg = Visca.Message.new():from_data(data):dump("Cam_Preset_Recall 2")
+    local recv_msg = Visca.Message.new():from_data(data):dump("Cam_Preset_Recall 8 PTZOptics")
     lunit.assert_not_nil(recv_msg.message.command)
+    lunit.assert_equal(8, recv_msg.message.command.arguments[2])
     lunit.assert_equal(7, recv_msg.payload_size, "invalid payload length")
+end
+
+function test_cam_reset_recall_6_jvc()
+    connection:set_compatibility({ preset_nr_offset = 1 })
+    local _, data = connection:Cam_Preset_Recall(6)
+    local recv_msg = Visca.Message.new():from_data(data):dump("Cam_Preset_Recall 6 JVC")
+    lunit.assert_not_nil(recv_msg.message.command)
+    lunit.assert_equal(5, recv_msg.message.command.arguments[2])
 end
 
 function test_cam_color_gain()
