@@ -17,7 +17,8 @@ Besides recalling a pre-made preset, this plugin supports a few more control ope
 
 This plugin requires the camera to support Visca over IP via UDP.
 It follows the specification as designed by Sony and also supports the PTZOptics variant of Visca.
-This plugin has been tested with Everet cameras and is also reported to work with other brands like Avonic, BZB Gear, GlowStream, PTZOptics and Zowietek cameras.
+This plugin is confirmed to work with at Avonic, BZB Gear, Everet, GlowStream, JVC, PTZOptics and Zowietek cameras.
+Others may work as well.
 
 Also visit https://obsproject.com/forum/resources/control-visca-over-ip-based-cameras.1173/ for more information. 
 
@@ -64,6 +65,11 @@ The preset follows a specific syntax to link a preset number to a name. The foll
 
 The separator can be `:`, `=` or `-`.
 Valid examples are `0: Home`, `5 = Pastor` or `Stage - 6`
+
+**Note:** Most cameras refer to the first preset as 1, other use 0.
+The presentation on the interface of the camera might not be specific on this topic, so keep this in mind while testing presets.
+The script attempts to autocorrect for this based on the detected camera Vendor and Model.
+At present this autocorrection is applied for cameras of vendor: JVC.
 
 ![Plugin backup and debug](images/docs/plugin_settings-backup.png)
 The bottom part of the plugin configuration settings section provides the ability to back up (export) the plugin settings to a 'json' file, restore (import) settings from a backup file.

@@ -231,6 +231,7 @@ Visca.limits = {
 Visca.CameraVendor = {
     [0x0001] = "Sony/NewTek",
     [0x0003] = "Everet",
+    [0x0052] = "JVC",
     [0x0220] = "GlowStream",
 }
 
@@ -249,6 +250,9 @@ Visca.CameraModel = {
     [0x0003] = {
         [0x0002] = "EVZ405N",
         [0x013B] = "EVP212N",
+    },
+    [0x0052] = {
+        [0x0000] = "Maybe KY-PZ200n",
     },
     [0x0220] = {
         [0x0511] = "GS300-20x-NDI",

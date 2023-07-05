@@ -445,6 +445,9 @@ local function open_visca_connection(camera_id)
                         if t_data.vendor_id == 0x0001 and t_data.model_code == 0x0513 then
                             -- NewTek PTZ1 NDI
                             connection.set_compatibility({ fixed_sequence_number = 1 })
+                        elseif t_data.vendor_id == 0x0052 then
+                            -- JVC KY-PZ200n and maybe others ...
+                            connection.set_compatibility({ preset_nr_offset = 1 })
                         end
                     end
 
