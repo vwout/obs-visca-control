@@ -24,6 +24,8 @@ Also visit https://obsproject.com/forum/resources/control-visca-over-ip-based-ca
 
 ## Installation
 The plugin is a script plugin and utilizes the Lua scripting capabilities of OBS.
+The script works on all recent versions of OBS, but version 28 or higher is recommended. 
+
 To use the plugin, add the file `obs-visca-control.lua` as a script, see below for a detailed instruction.
 The other `.lua` files in this repository are also required, but should not be added as scripts in OBS.
 
