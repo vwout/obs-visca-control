@@ -826,6 +826,8 @@ end
 function script_load(settings)
     plugin_settings = settings
 
+    print(string.format("%s version %s", plugin_info.name, plugin_info.version))
+
     local plugin_hotkey_actions = {
         { name = "suppress_scene_actions", descr = "Suppress actions on scenes",
             action = plugin_actions.Suppress_Scene_Actions },
@@ -928,8 +930,6 @@ function script_load(settings)
             })
         end
     end
-
-    print(string.format("%s version %s loaded", plugin_info.name, plugin_info.version))
 
     obs.timer_add(handleViscaResponses, 100)
 end
