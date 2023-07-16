@@ -1337,14 +1337,21 @@ plugin_def.get_properties = function(data)
     obs.obs_properties_add_int_slider(config_props, "scene_image_brightness_val", "Level",
         Visca.limits.BRIGHTNESS_MIN, Visca.limits.BRIGHTNESS_MAX, 1)
 
-    obs.obs_properties_add_text(config_props, "scene_custom_info",
-        "In the start and stop command entries, enter the Visca command that must be sent to the camera when a " ..
-        "scene loads (start) or unloads (stop), as sequence of hexadecimal values. \n" ..
-        "The command codes can be camera specific and usually are found in the manual of the camera. \n" ..
-        "Example: \n- Set tally light on: '01 7E 01 0A 00 02' \n" ..
-        "The hexadecimal values may be space separated and may use 0x prefixes, but this is not required. \n" ..
-        "The command values should not include the (first) address (8x) and the (last) termination (FF) byte.",
-        obs.OBS_TEXT_INFO)
+    -- Use OBS_TEXT_INFO only when OBS version >= 28
+    if obslua.obs_get_version() / 255 ^ 3 >= 28 then
+        obs.obs_properties_add_text(config_props, "scene_custom_info",
+            "In the start and stop command entries, enter the Visca command that must be sent to the camera when a " ..
+            "scene loads (start) or unloads (stop), as sequence of hexadecimal values. \n" ..
+            "The command codes can be camera specific and usually are found in the manual of the camera. \n" ..
+            "Example: \n- Set tally light on: '01 7E 01 0A 00 02' \n" ..
+            "The hexadecimal values may be space separated and may use 0x prefixes, but this is not required. \n" ..
+            "The command values should not include the (first) address (8x) and the (last) termination (FF) byte.",
+            obs.OBS_TEXT_INFO)
+    else
+        local prop_custom_info = obs.obs_properties_add_text(config_props, "scene_custom_info",
+            "See plugin documentation for details", obslua.OBS_TEXT_DEFAULT)
+        obs.obs_property_set_enabled(prop_custom_info, false)
+    end
     obs.obs_properties_add_text(config_props, "scene_custom_start", "Start command", obs.OBS_TEXT_DEFAULT)
     obs.obs_properties_add_text(config_props, "scene_custom_stop", "Stop command", obs.OBS_TEXT_DEFAULT)
 
