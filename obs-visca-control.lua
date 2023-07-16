@@ -440,14 +440,26 @@ local function open_visca_connection(camera_id)
                             reply_data.rom_version or 0)
                         local version_info_setting = string.format("cam_%d_version_info", camera_id)
                         obs.obs_data_set_string(plugin_settings, version_info_setting, version_info)
-                        log("Set setting %s to %s", version_info_setting, version_info)
+                        log("Set camera %d version info to %s", camera_id, version_info)
 
+                        local compatibility = {}
                         if t_data.vendor_id == 0x0001 and t_data.model_code == 0x0513 then
                             -- NewTek PTZ1 NDI
-                            connection.set_compatibility({ fixed_sequence_number = 1 })
+                            compatibility = { fixed_sequence_number = 1 }
                         elseif t_data.vendor_id == 0x0052 then
                             -- JVC KY-PZ200n and maybe others ...
-                            connection.set_compatibility({ preset_nr_offset = 1 })
+                            compatibility = { preset_nr_offset = 1 }
+                        end
+
+                        if next(compatibility) then
+                            connection.set_compatibility(compatibility)
+
+                            local compat_a = {}
+                            for k, v in pairs (compatibility) do
+                                table.insert(compat_a, string.format('%s = %s', k, v))
+                            end
+                            print(string.format("Set compatibility mode for camera %d: %s", camera_id,
+                                table.concat(compat_a, ',')))
                         end
                     end
 
@@ -916,6 +928,8 @@ function script_load(settings)
             })
         end
     end
+
+    print(string.format("%s version %s loaded", plugin_info.name, plugin_info.version))
 
     obs.timer_add(handleViscaResponses, 100)
 end
