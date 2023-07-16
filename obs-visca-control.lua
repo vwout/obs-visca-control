@@ -1118,10 +1118,8 @@ local function do_cam_scene_action(settings, action_at)
             custom_stop = parse_custom_action(obs.obs_data_get_string(settings, "scene_custom_stop")),
         }
 
-        local active = obs.obs_data_get_int(settings, "scene_active")
-        local delay = obs.obs_data_get_int(settings, "scene_action_delay") or 0
-
         if action_at == scene_action_at.Start then
+            local delay = obs.obs_data_get_int(settings, "scene_action_delay") or 0
             if delay > 0 then
                 obs.timer_add(function()
                     obs.remove_current_callback()
@@ -1131,52 +1129,111 @@ local function do_cam_scene_action(settings, action_at)
                 do_cam_action_start(camera_id, scene_action, action_args)
             end
         else
-            if not camera_active_in_scene(plugin_scene_type.Program, camera_id) and
-               (active == camera_action_active.Program or
-                not camera_active_in_scene(plugin_scene_type.Preview, camera_id)) then
-                do_cam_action_stop(camera_id, scene_action, action_args)
-            end
+            do_cam_action_stop(camera_id, scene_action, action_args)
         end
     else
         log("Suppressed action for cam %d action %d", camera_id, scene_action)
     end
 end
 
+local function source_signal_processor(source_settings, source_name, signal)
+    local do_action = false
+    local active = obs.obs_data_get_int(source_settings, "scene_active")
+
+    -- Signals signal.activate and signal.deactivate are triggered when the source is active/inactive on program
+    if signal.activate or signal.deactivate then
+        if (active == camera_action_active.Program) or (active == camera_action_active.Always) then
+            do_action = true
+        end
+    end
+
+    -- Signals signal.show and signal.hide do not trigger an action.
+    -- These signals also trigger when multiview is activated, so does not reliably represent preview status.
+    -- In addition, the signals are no longer triggered when the scene is active on preview.
+    -- TODO: Remove handling of signal.hide when signal.hide_fe_event is send by fe_callback
+    if signal.show_fe_event or signal.hide_fe_event or signal.hide then
+        if (active == camera_action_active.Preview) or (active == camera_action_active.Always) then
+            do_action = true
+        end
+    end
+
+    log("%s source '%s': %s", signal.activate and "Activate" or
+                              signal.deactivate and "Deactivate" or
+                              signal.show and "Show" or
+                              signal.show_fe_event and "Show (FE)" or
+                              signal.hide and "Hide" or
+                              signal.hide_fe_event and "Hide (FE)" or
+                              "?", source_name, do_action and "process" or "no action")
+
+    if do_action then
+        local camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
+
+        if signal.show or signal.show_fe_event then
+            local preview_exclusive = obs.obs_data_get_bool(source_settings, "preview_exclusive")
+            if preview_exclusive then
+                if camera_active_in_scene(plugin_scene_type.Program, camera_id) then
+                    do_action = false
+                    log("Not running start action on preview for source '%s', " ..
+                        "because it is currently active on program", source_name or "?")
+                end
+            end
+        end
+
+        if signal.deactivate or signal.hide_fe_event or signal.hide then
+            if camera_active_in_scene(plugin_scene_type.Program, camera_id) then
+                do_action = false
+                log("Not running stop action for source '%s', " ..
+                    "because it is currently active on program", source_name or "?")
+            end
+            if (active == camera_action_active.Preview) and
+                camera_active_in_scene(plugin_scene_type.Preview, camera_id) then
+                do_action = false
+                log("Not running stop action on preview for source '%s', " ..
+                    "because it is currently active on preview", source_name or "?")
+            end
+        end
+    end
+
+    if do_action then
+        if signal.activate or signal.show or signal.show_fe_event then
+            do_cam_scene_action(source_settings, scene_action_at.Start)
+        end
+        if signal.deactivate or signal.hide or signal.hide_fe_event then
+            do_cam_scene_action(source_settings, scene_action_at.Stop)
+        end
+    end
+end
+
 local function fe_callback(event, data)
     if event == obs.OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED then
-        local process_scene = false
+        local unset_preview_scene = true
+        local activate_sources = false
 
+        local first = true
         for scene_name, source_name, source_settings, source_is_visible in
             get_plugin_settings_from_scene(plugin_scene_type.Preview) do
-            if process_scene or (plugin_data.preview_scene ~= scene_name) then
-                process_scene = true
-                plugin_data.preview_scene = scene_name
-                log("OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED to %s for %s", scene_name or "?", source_name or "?")
 
+            if first then
+                if (plugin_data.preview_scene ~= scene_name) then
+                    log("OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED to '%s' for '%s'",
+                        scene_name or "?", source_name or "?")
+                    plugin_data.preview_scene = scene_name
+                    activate_sources = true
+                end
+
+                if (plugin_data.preview_scene == scene_name) then
+                    unset_preview_scene = false
+                end
+
+                first = false
+            end
+
+            -- TODO: Filter events for scene transitioning back to preview to prevent start action execution
+
+            -- Activate the Visca sources in the now visible scene
+            if activate_sources then
                 if source_settings and source_is_visible then
-                    local do_action = false
-                    local active = obs.obs_data_get_int(source_settings, "scene_active")
-
-                    if (active == camera_action_active.Preview) or
-                       (active == camera_action_active.Always) then
-                        do_action = true
-
-                        local preview_exclusive = obs.obs_data_get_bool(source_settings, "preview_exclusive")
-                        if preview_exclusive then
-                            local preview_camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
-                            if camera_active_in_scene(plugin_scene_type.Program, preview_camera_id) then
-                                do_action = false
-                                log("Not running action for source '%s', " ..
-                                    "because it is currently active on program",
-                                    source_name or "?")
-                            end
-                        end
-                    end
-
-                    if do_action then
-                        log("Preview source '%s'", source_name or "?")
-                        do_cam_scene_action(source_settings, scene_action_at.Start)
-                    end
+                    source_signal_processor(source_settings, source_name, { show_fe_event = true })
                 end
             end
 
@@ -1184,31 +1241,24 @@ local function fe_callback(event, data)
                 obs.obs_data_release(source_settings)
             end
         end
+
+        if unset_preview_scene and plugin_data.preview_scene ~= nil then
+            log("OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED unset from '%s'", plugin_data.preview_scene)
+            -- TODO: Trigger artificial event { hide_fe_event = true }
+            -- This even should replace the signal 'hide' that is not properly lauched when multiview is active
+            plugin_data.preview_scene = nil
+        end
     end
 end
 
 local function source_signal_handler(calldata, signal)
     local source = obs.calldata_source(calldata, "source")
-    local settings = obs.obs_source_get_settings(source)
+    local source_settings = obs.obs_source_get_settings(source)
     local source_name = obs.obs_source_get_name(source)
 
-    log("%s source %s", signal.activate and "Activate" or
-                        signal.deactivate and "Deactivate" or
-                        signal.hide and "Hide" or
-                        "?", source_name)
+    source_signal_processor(source_settings, source_name, signal)
 
-    local do_action = false
-    local active = obs.obs_data_get_int(settings, "scene_active")
-    if (active == camera_action_active.Program) or (active == camera_action_active.Always) then
-        do_action = true
-    end
-
-    if do_action then
-        if signal.activate then do_cam_scene_action(settings, scene_action_at.Start) end
-        if signal.deactivate or signal.hide then do_cam_scene_action(settings, scene_action_at.Stop) end
-    end
-
-    obs.obs_data_release(settings)
+    obs.obs_data_release(source_settings)
 end
 
 local function cb_scene_get_ptz_position(scene_props, btn_prop)
@@ -1235,13 +1285,20 @@ end
 plugin_def.create = function(_settings, source)
     local data = {}
     local source_sh = obs.obs_source_get_signal_handler(source)
+    obs.signal_handler_connect(source_sh, "show",
+        function(calldata) source_signal_handler(calldata, { show = true }) end)
     obs.signal_handler_connect(source_sh, "hide",
         function(calldata) source_signal_handler(calldata, { hide = true }) end)
     obs.signal_handler_connect(source_sh, "activate",
         function(calldata) source_signal_handler(calldata, { activate = true }) end)
     obs.signal_handler_connect(source_sh, "deactivate",
         function(calldata) source_signal_handler(calldata, { deactivate = true }) end)
+
+    -- The ideal handling of signals on preview is via the signals 'show' and 'hide.
+    -- These however are not properly fired when Multiview is active.
+    -- The active preview scene is for that reason monitored via the OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED event.
     obs.obs_frontend_add_event_callback(fe_callback)
+
     return data
 end
 
@@ -1379,7 +1436,7 @@ plugin_def.get_properties = function(data)
     obs.obs_property_list_add_int(prop_active, "On Preview", camera_action_active.Preview)
     obs.obs_property_list_add_int(prop_active, "Always", camera_action_active.Always)
     obs.obs_properties_add_bool(option_props, "preview_exclusive",
-        "Run action on preview only when the camera is not active on program")
+        "Run action on preview only when the camera is exclusive on preview, not active on program")
     obs.obs_properties_add_int(option_props, "scene_action_delay", "Delay Action (ms)", 0, 777333, 1)
     obs.obs_properties_add_group(props, "scene_option_grp", "Action options", obs.OBS_GROUP_NORMAL, option_props)
 

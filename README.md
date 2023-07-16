@@ -106,7 +106,9 @@ In the source settings, select the camera and the action that should be executed
 This command must be in the documentation of the camera and consists of a series of hexadecimal values.
 When these values are not know, or the manual is not understood, don't use this action.
 - _Action Active_: The camera action is executed when either the scene in which the source is used becomes active in preview, in program, or both, depending on the selected entry in the selection.
-- To make sure that a preview does not change settings of a camera that is on program, select the checkbox 'Run action on preview only when the camera is not active on program'.
+- To make sure that a preview does not change settings of a camera that is on program.
+Select the checkbox 'Run action on preview only when the camera is exclusive on preview, not active on program' ('on preview exclusive').
+**Note**: Apply action _on preview exclusive_ when running OBS in Studio Mode, otherwise the action will never be executed. 
 - _Delay Action_: When not set (left to 0), the action is immediately executed when the scene becomes active.
 To delay the action execution, for example to synchronize after completion of a transition, set it to the number of milliseconds to wait.
 This delay can also be used to run multiple actions in sequence
@@ -115,6 +117,22 @@ Camera actions configured for a scene are executed as configured when the scene 
 To temporarily suppress execution of scene actions, configure the hotkey '<a name="suppress_actions_on_scenes">`Suppress actions on scenes`</a>'.
 As long as the hotkey is pressed, actions are not executed.
 To permanently disable execution, without removing the configuration, change the visibility of the `Visca Camera Control` source in the scene to 'hidden'. 
+
+#### Action execution overview
+
+|                                                                          | Preview scene load | Transition to program | Transition back to preview                                  | Unload preview scene (select other scene) |
+|--------------------------------------------------------------------------|--------------------|-----------------------|-------------------------------------------------------------|-------------------------------------------|
+| **Action Active**: Always<br/>**On preview exclusive**: No               | Send start command | Send start command    | 1. Send start commmand<sup>2</sup><br/>2. Send stop command | Send stop command                         |
+| **Action Active**: Always<br/>**On preview exclusive**: Yes<sup>1</sup>  | -                  | Send start command    | Send stop command                                           | -                                         |
+| **Action Active**: Preview<br/>**On preview exclusive**: No              | Send start command | -                     | Send start commmand<sup>2</sup>                             | Send stop command                         |
+| **Action Active**: Preview<br/>**On preview exclusive**: Yes<sup>1</sup> | -                  | -                     | -                                                           | -                                         |
+| **Action Active**: Program<br/>**On preview exclusive**: N/A             | -                  | Send start command    | Send stop command                                           | -                                         |
+
+
+<sup>1</sup>The checkbox 'Run action on preview only...' is active *and* for the same camera a Visca action is active (visible) on program.
+In case no Visca camera is active on program, or a different Visca camera is active, the table result for 'No' apply.
+
+<sup>2</sup>The source for this scene become active as preview scene, for that reason, the start command is send, directly followed by the stop command.
 
 ### Hotkeys
 The plugin adds a number of hotkeys to the global OBS settings.
