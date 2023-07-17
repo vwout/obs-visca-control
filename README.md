@@ -103,6 +103,7 @@ In the source settings, select the camera and the action that should be executed
   Note that this action does not use a specific starting position, the pan action starts from the camera position that is actual when the scene becomes active.
   - For `Zoom In` and `Zoom Out`, the animation speeds determines the zoom speed.
   - The `Custom Command` action allows sending a custom Visca command to the camera at activation or deactivation of a scene.
+See [Custom Command action execution overview](#custom-command-action-execution-overview) for details on how custom command actions are processed. 
 This command must be in the documentation of the camera and consists of a series of hexadecimal values.
 When these values are not know, or the manual is not understood, don't use this action.
 - _Action Active_: The camera action is executed when either the scene in which the source is used becomes active in preview, in program, or both, depending on the selected entry in the selection.
@@ -114,11 +115,12 @@ To delay the action execution, for example to synchronize after completion of a 
 This delay can also be used to run multiple actions in sequence
 
 Camera actions configured for a scene are executed as configured when the scene is activated or deactivated on preview or on program.
-To temporarily suppress execution of scene actions, configure the hotkey '<a name="suppress_actions_on_scenes">`Suppress actions on scenes`</a>'.
-As long as the hotkey is pressed, actions are not executed.
-To permanently disable execution, without removing the configuration, change the visibility of the `Visca Camera Control` source in the scene to 'hidden'. 
 
-#### Action execution overview
+**Tip**: To temporarily suppress execution of scene actions, configure the hotkey <a name="suppress_actions_on_scenes">`Suppress actions on scenes`</a>.
+As long as the hotkey is pressed, actions are not executed.
+To permanently disable execution, without removing the configuration, change the visibility of the `Visca Camera Control` source in the scene to `hidden`. 
+
+#### Custom Command action execution overview
 
 |                                                                          | Preview scene load | Transition to program | Transition back to preview                                  | Unload preview scene (select other scene) |
 |--------------------------------------------------------------------------|--------------------|-----------------------|-------------------------------------------------------------|-------------------------------------------|
@@ -133,6 +135,7 @@ To permanently disable execution, without removing the configuration, change the
 In case no Visca camera is active on program, or a different Visca camera is active, the table result for 'No' apply.
 
 <sup>2</sup>The source for this scene become active as preview scene, for that reason, the start command is send, directly followed by the stop command.
+This is considered a bug and will be removed in the future, so don't rely on it!
 
 ### Hotkeys
 The plugin adds a number of hotkeys to the global OBS settings.
