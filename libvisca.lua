@@ -844,9 +844,7 @@ end
 
 --- @param compatibility ViscaCompatibility
 function Visca.Connection:set_compatibility(compatibility)
-    compatibility = compatibility or {}
-
-    for k,v in pairs(compatibility) do
+    for k,v in pairs(compatibility or {}) do
         self.compatibility[k] = v
     end
 end
@@ -1278,10 +1276,11 @@ end
 --- @param preset number The preset number (typically starting with the first preset at 1)
 --- @return number, string
 function Visca.Connection:Cam_Preset_Recall(preset)
-    if self.compatibility.preset_nr_offset then
+    if self.compatibility.preset_nr_offset ~= nil then
         preset = preset - self.compatibility.preset_nr_offset
     end
     preset = math.max(math.min(preset or 0, 127), 0)
+
     local msg = Visca.Message.new()
     msg.payload_type = Visca.payload_types.visca_command
     msg.payload = {

@@ -130,9 +130,17 @@ function test_cam_reset_recall_8_ptzoptics()
 end
 
 function test_cam_reset_recall_6_jvc()
-    connection:set_compatibility({ preset_nr_offset = 1 })
+    connection:set_compatibility(nil)
     local _, data = connection:Cam_Preset_Recall(6)
-    local recv_msg = Visca.Message.new():from_data(data):dump("Cam_Preset_Recall 6 JVC")
+    local recv_msg = Visca.Message.new():from_data(data):dump("Cam_Preset_Recall 6 normal")
+    lunit.assert_not_nil(recv_msg.message.command)
+    lunit.assert_equal(6, recv_msg.message.command.arguments[2])
+
+    clear_transmission_queue(connection)
+
+    connection:set_compatibility({ preset_nr_offset = 1 })
+    _, data = connection:Cam_Preset_Recall(6)
+    recv_msg = Visca.Message.new():from_data(data):dump("Cam_Preset_Recall 6 JVC")
     lunit.assert_not_nil(recv_msg.message.command)
     lunit.assert_equal(5, recv_msg.message.command.arguments[2])
 end

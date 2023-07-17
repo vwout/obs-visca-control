@@ -452,7 +452,7 @@ local function open_visca_connection(camera_id)
                         end
 
                         if next(compatibility) then
-                            connection.set_compatibility(compatibility)
+                            connection:set_compatibility(compatibility)
 
                             local compat_a = {}
                             for k, v in pairs (compatibility) do
