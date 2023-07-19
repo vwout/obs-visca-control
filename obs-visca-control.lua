@@ -21,6 +21,10 @@ local plugin_data = {
     debug = false,
     active_scene = nil,
     preview_scene = nil,
+    program_scene = {},    -- List containing typically 1 scene name that is on program.
+                           -- This datastructure is a list because the signals activate and deactivate are triggered
+                           -- respectively before and after change to/from program. During the transition there are
+                           -- thus two scenes that could be active on program.
     connections = {},
     reply_data = {},
     hotkeys = {},
@@ -1164,6 +1168,37 @@ local function source_signal_processor(source_settings, source_name, signal)
                               signal.hide and "Hide" or
                               signal.hide_fe_event and "Hide (FE)" or
                               "?", source_name, do_action and "process" or "no action")
+
+    if signal.show or signal.show_fe_event then
+        local current_preview_scene = obs.obs_frontend_get_current_preview_scene()
+        local current_preview_scene_name = obs.obs_source_get_name(current_preview_scene)
+
+        if plugin_data.program_scene[current_preview_scene_name] ~= nil then
+            do_action = false
+            log("Not running start action on preview for source '%s', " ..
+                "because it transitioned from program in scene %s", source_name or "?", current_preview_scene_name)
+        end
+
+        obs.obs_source_release(current_preview_scene)
+    end
+
+    if signal.activate then
+        local current_program_scene = obs.obs_frontend_get_current_scene()
+        local current_program_scene_name = obs.obs_source_get_name(current_program_scene)
+
+        plugin_data.program_scene[current_program_scene_name] = true
+
+        obs.obs_source_release(current_program_scene)
+    end
+
+    if signal.deactivate then
+        local current_preview_scene = obs.obs_frontend_get_current_preview_scene()
+        local current_preview_scene_name = obs.obs_source_get_name(current_preview_scene)
+
+        plugin_data.program_scene[current_preview_scene_name] = nil
+
+        obs.obs_source_release(current_preview_scene)
+    end
 
     if do_action then
         local camera_id = obs.obs_data_get_int(source_settings, "scene_camera")

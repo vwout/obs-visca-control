@@ -122,20 +122,17 @@ To permanently disable execution, without removing the configuration, change the
 
 #### Custom Command action execution overview
 
-|                                                                          | Preview scene load | Transition to program | Transition back to preview                                  | Unload preview scene (select other scene) |
-|--------------------------------------------------------------------------|--------------------|-----------------------|-------------------------------------------------------------|-------------------------------------------|
-| **Action Active**: Always<br/>**On preview exclusive**: No               | Send start command | Send start command    | 1. Send start commmand<sup>2</sup><br/>2. Send stop command | Send stop command                         |
-| **Action Active**: Always<br/>**On preview exclusive**: Yes<sup>1</sup>  | -                  | Send start command    | Send stop command                                           | -                                         |
-| **Action Active**: Preview<br/>**On preview exclusive**: No              | Send start command | -                     | Send start commmand<sup>2</sup>                             | Send stop command                         |
-| **Action Active**: Preview<br/>**On preview exclusive**: Yes<sup>1</sup> | -                  | -                     | -                                                           | -                                         |
-| **Action Active**: Program<br/>**On preview exclusive**: N/A             | -                  | Send start command    | Send stop command                                           | -                                         |
+|                                                                          | Load scene on preview | Transition to program | Transition back to preview | Unload scene on preview (select other scene) |
+|--------------------------------------------------------------------------|-----------------------|-----------------------|----------------------------|----------------------------------------------|
+| **Action Active**: Always<br/>**On preview exclusive**: No               | Send start command    | Send start command    | Send stop command          | Send stop command                            |
+| **Action Active**: Always<br/>**On preview exclusive**: Yes<sup>1</sup>  | -                     | Send start command    | Send stop command          | -                                            |
+| **Action Active**: Preview<br/>**On preview exclusive**: No              | Send start command    | -                     | -                          | Send stop command                            |
+| **Action Active**: Preview<br/>**On preview exclusive**: Yes<sup>1</sup> | -                     | -                     | -                          | -                                            |
+| **Action Active**: Program<br/>**On preview exclusive**: N/A             | -                     | Send start command    | Send stop command          | -                                            |
 
 
 <sup>1</sup>The checkbox 'Run action on preview only...' is active *and* for the same camera a Visca action is active (visible) on program.
 In case no Visca camera is active on program, or a different Visca camera is active, the table result for 'No' apply.
-
-<sup>2</sup>The source for this scene become active as preview scene, for that reason, the start command is send, directly followed by the stop command.
-This is considered a bug and will be removed in the future, so don't rely on it!
 
 ### Hotkeys
 The plugin adds a number of hotkeys to the global OBS settings.
