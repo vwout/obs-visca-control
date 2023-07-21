@@ -1143,6 +1143,7 @@ end
 local function source_signal_processor(source_settings, source_name, signal)
     local do_action = false
     local active = obs.obs_data_get_int(source_settings, "scene_active")
+    local camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
 
     -- Signals signal.activate and signal.deactivate are triggered when the source is active/inactive on program
     if signal.activate or signal.deactivate then
@@ -1161,13 +1162,16 @@ local function source_signal_processor(source_settings, source_name, signal)
         end
     end
 
-    log("%s source '%s': %s", signal.activate and "Activate" or
-                              signal.deactivate and "Deactivate" or
-                              signal.show and "Show" or
-                              signal.show_fe_event and "Show (FE)" or
-                              signal.hide and "Hide" or
-                              signal.hide_fe_event and "Hide (FE)" or
-                              "?", source_name, do_action and "process" or "no action")
+    log("%s visca source '%s' (camera %d): %s",
+        signal.activate and "Activate" or
+        signal.deactivate and "Deactivate" or
+        signal.show and "Show" or
+        signal.show_fe_event and "Show (FE)" or
+        signal.hide and "Hide" or
+        signal.hide_fe_event and "Hide (FE)" or "?",
+        source_name,
+        camera_id,
+        do_action and "process" or "no action")
 
     if signal.show or signal.show_fe_event then
         local current_preview_scene = obs.obs_frontend_get_current_preview_scene()
@@ -1201,8 +1205,6 @@ local function source_signal_processor(source_settings, source_name, signal)
     end
 
     if do_action then
-        local camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
-
         if signal.show or signal.show_fe_event then
             local preview_exclusive = obs.obs_data_get_bool(source_settings, "preview_exclusive")
             if preview_exclusive then
