@@ -231,7 +231,7 @@ Visca.limits = {
 Visca.CameraVendor = {
     [0x0001] = "Sony/NewTek",
     [0x0003] = "Everet",
-    [0x0052] = "JVC",
+    [0x0020] = "Sony",  -- According libvisca
     [0x0220] = "GlowStream",
 }
 
@@ -239,6 +239,11 @@ Visca.CameraModelMeta = {}
 Visca.CameraModelMeta.__index = function(_, _) return {} end
 Visca.CameraModel = {
     [0x0001] = {
+        [0x0501] = "BRC-H700",
+        [0x0502] = "BRU-H700",
+        [0x0505] = "BRC-Z700",
+        [0x0507] = "BRC-Z330",
+        [0x050B] = "BRC-H900",
         [0x0513] = "PTZ1 NDI",
         [0x051C] = "BRC-X400",
         [0x051D] = "BRC-X401",
@@ -250,9 +255,6 @@ Visca.CameraModel = {
     [0x0003] = {
         [0x0002] = "EVZ405N",
         [0x013B] = "EVP212N",
-    },
-    [0x0052] = {
-        [0x0000] = "Maybe KY-PZ200n",
     },
     [0x0220] = {
         [0x0511] = "GS300-20x-NDI",
@@ -348,7 +350,8 @@ function Visca.PayloadReply.new()
         reply_type    = 0x00,
         socket_number = 0,
         error_type    = 0x00,
-        arguments     = {}
+        arguments     = {},
+        argument_cnt  = 0
     }
     setmetatable(self, Visca.PayloadReply)
     return self
@@ -364,6 +367,7 @@ function Visca.PayloadReply:from_payload(payload)
         for i = 3, #payload do
             if not ((i == #payload) and (payload[i] == Visca.packet_consts.terminator)) then
                 table.insert(self.arguments, payload[i])
+                self.argument_cnt = self.argument_cnt + 1
             end
         end
     end
@@ -389,11 +393,19 @@ function Visca.PayloadReply:get_inquiry_data_for(inquiry_payload)
 
     if category == Visca.categories.interface then
         if inquiry_command == Visca.inquiry_commands.software_version then
-            data = {
-                vendor_id   = bit.lshift(self.arguments[1] or 0, 8) + (self.arguments[2] or 0),
-                model_code  = bit.lshift(self.arguments[3] or 0, 8) + (self.arguments[4] or 0),
-                rom_version = bit.lshift(self.arguments[5] or 0, 8) + (self.arguments[6] or 0),
-            }
+            if self.argument_cnt == 7 then
+                -- The SOFTWARE VERSION (CAM_VersionInq) response is: y0 50 pp pp qq qq rr rr 0s FF
+                -- pppp: Vendor ID
+                -- qqqq: Model Code
+                -- rrrr: ROM version
+                -- s: (max) Socket Number
+                data = {
+                    vendor_id      = bit.lshift(self.arguments[1] or 0, 8) + (self.arguments[2] or 0),
+                    model_code     = bit.lshift(self.arguments[3] or 0, 8) + (self.arguments[4] or 0),
+                    rom_version    = bit.lshift(self.arguments[5] or 0, 8) + (self.arguments[6] or 0),
+                    max_nr_sockets = bit.band(self.arguments[7] or 0, 0x0F),
+                }
+            end
         end
     elseif category == Visca.categories.camera then
         if inquiry_command == Visca.inquiry_commands.color_gain then

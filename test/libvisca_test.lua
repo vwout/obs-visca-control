@@ -45,7 +45,7 @@ module("libvisca_test", lunit.testcase, package.seeall)
 local connection
 
 function setup()
-    connection = Visca.connect('192.168.7.204')
+    connection = Visca.connect('127.1.2.101')
     lunit.assert_true(connection:set_mode(Visca.modes.generic))
 end
 
@@ -143,6 +143,12 @@ function test_cam_reset_recall_6_jvc()
     recv_msg = Visca.Message.new():from_data(data):dump("Cam_Preset_Recall 6 JVC")
     lunit.assert_not_nil(recv_msg.message.command)
     lunit.assert_equal(5, recv_msg.message.command.arguments[2])
+
+    connection2 = Visca.connect('127.1.2.102')
+    local _, data2 = connection2:Cam_Preset_Recall(6)
+    local recv_msg2 = Visca.Message.new():from_data(data2):dump("Cam_Preset_Recall 6 normal 2")
+    lunit.assert_not_nil(recv_msg2.message.command)
+    lunit.assert_equal(6, recv_msg2.message.command.arguments[2])
 end
 
 function test_cam_color_gain()
