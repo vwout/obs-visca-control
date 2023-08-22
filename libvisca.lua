@@ -1291,7 +1291,7 @@ function Visca.Connection:Cam_Preset_Recall(preset)
     if self.compatibility.preset_nr_offset ~= nil then
         preset = preset - self.compatibility.preset_nr_offset
     end
-    preset = math.max(math.min(preset or 0, 127), 0)
+    preset = math.max(math.min(preset or 0, 254), 0)
 
     local msg = Visca.Message.new()
     msg.payload_type = Visca.payload_types.visca_command
@@ -1301,7 +1301,7 @@ function Visca.Connection:Cam_Preset_Recall(preset)
         Visca.categories.camera,
         Visca.commands.preset,
         Visca.command_arguments.preset_recall,
-        bit.band(preset, 0x7F),  -- Preset Number(=0 to 127)
+        bit.band(preset, 0xFF),  -- Preset Number(=0 to 254)
         Visca.packet_consts.terminator
     }
 

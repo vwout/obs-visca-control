@@ -134,6 +134,11 @@ local function parse_preset_value(preset_value)
         end
     end
 
+    if (preset_id ~= nil) and ((preset_id < 0) or (preset_id > 254)) then
+        preset_name = nil
+        preset_id = nil
+    end
+
     return preset_name, preset_id
 end
 
