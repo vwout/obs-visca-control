@@ -66,13 +66,12 @@ The preset follows a specific syntax to link a preset number to a name. The foll
 - `<preset number>` `<separator>` `<name>`
 
 The separator can be `:`, `=` or `-`.
-Valid examples are `0: Home`, `5 = Pastor` or `Stage - 6`
+Valid examples are `0: Home`, `5 = Pastor` or `Stage - 6`.
+The number of presets that are supported may vary from camera to camera. This script supports up to preset number 254.
 
 **Note:** Most cameras refer to the first preset as 1, other use 0.
-The presentation on the interface of the camera might not be specific on this topic, so keep this in mind while testing presets.
-The script attempts to autocorrect for this based on the detected camera Vendor and Model.
-At present this autocorrection is applied for cameras of vendor: JVC.
-The number of presets that are supported may vary from camera to camera. This script supports up to preset number 254.
+The presentation on the interface of the camera might not be clear on this topic, so keep this in mind while testing presets.
+JVC camera models are known to demonstrate this behavior.
 
 ![Plugin backup and debug](images/docs/plugin_settings-backup.png)
 The bottom part of the plugin configuration settings section provides the ability to back up (export) the plugin settings to a 'json' file, restore (import) settings from a backup file.
