@@ -13,7 +13,8 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: Create release archive
-      run: zip ${{ github.event.repository.name }}-${{ github.ref }}.zip LICENSE obs-visca-control.lua libvisca.lua ljsocket.lua
+      run: zip ${{ github.event.repository.name }}-${{ github.ref }}.zip \
+        LICENSE obs-visca-control.lua libvisca.lua ljsocket.lua
 
     - name: Release
       uses: softprops/action-gh-release@v1

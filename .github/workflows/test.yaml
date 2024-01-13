@@ -10,20 +10,37 @@ jobs:
     - name: Check out the repo
       uses: actions/checkout@v3
     - name: Build the Docker image
-      run: docker build .docker/alpine/ --tag vwout/obs-visca-control-lua:5.2
+      run: docker build .docker/alpine/ --tag vwout/obs-visca-control-test:lua-5.2
     - name: Run linter
       uses: addnab/docker-run-action@v3
       with:
-        image: vwout/obs-visca-control-lua:5.2
+        image: vwout/obs-visca-control-test:lua-5.2
         options: -v ${{ github.workspace }}:/github/workspace
         run: |
+            echo "Static luacheck libvisca.lua, obs-visca-control.lua"
             luacheck --config .luacheckrc \
               libvisca.lua \
               obs-visca-control.lua
+            echo "Linting libvisca.lua, obs-visca-control.lua"
+            lualint -s libvisca.lua -s obs-visca-control.lua
+    - name: Bytecode verification
+      uses: addnab/docker-run-action@v3
+      with:
+        image: vwout/obs-visca-control-test:lua-5.2
+        options: -v ${{ github.workspace }}:/github/workspace
+        run: |
+          echo "Checking JIT bytecode for libvisca.lua"
+          luajit -bl libvisca.lua /dev/null
+          echo "Checking JIT bytecode for obs-visca-control.lua"
+          luajit -bl obs-visca-control.lua /dev/null
+          echo "Checking bytecode for libvisca.lua"
+          luac -p libvisca.lua
+          echo "Checking bytecode for obs-visca-control.lua"
+          luac -p obs-visca-control.lua
     - name: Run unit tests
       uses: addnab/docker-run-action@v3
       with:
-        image: vwout/obs-visca-control-lua:5.2
+        image: vwout/obs-visca-control-test:lua-5.2
         options: -v ${{ github.workspace }}:/github/workspace
         run: |
             find test -name "*_test.lua" | xargs lunit

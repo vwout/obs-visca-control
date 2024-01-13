@@ -1,10 +1,11 @@
-FROM alpine:3.16
+FROM alpine:3.19
 
 ARG LUA_VERSION=5.2
 ARG LUA_MODULES="lunit luacheck luacov luacov-html"
 
 RUN apk add --no-cache \
         bash \
+        luajit \
         lua${LUA_VERSION} \
         lua${LUA_VERSION}-bit32 \
         lua${LUA_VERSION}-filesystem \
@@ -23,6 +24,11 @@ RUN apk add --no-cache \
        done \
     \
     && apk del .build-deps
+
+ADD https://github.com/philips/lualint/raw/master/lualint /bin/lualint
+RUN chmod +x /bin/lualint \
+    && \
+    ln -s /usr/bin/luac${LUA_VERSION} /usr/bin/luac
 
 RUN mkdir -p /github/workspace
 VOLUME ["/github/workspace"]
