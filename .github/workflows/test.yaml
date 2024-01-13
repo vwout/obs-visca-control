@@ -45,4 +45,3 @@ jobs:
         run: |
             find test -name "*_test.lua" | xargs lunit
             luacov obs-visca-control.lua libvisca.lua
-            grep -A10 -B1 "Summary" luacov.report.out >> $GITHUB_STEP_SUMMARY
