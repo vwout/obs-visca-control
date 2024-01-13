@@ -1,6 +1,9 @@
 # obs-visca-control
 A plugin for [OBS](https://obsproject.com/) to control Visca-over-IP based cameras.
 
+[![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://opensource.org/licenses/)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/vwout/obs-visca-control?style=flat-square)
+
 This plugin adds a source to a scene in OBS. With this source, a camera can be controlled.
 Its main purpose is to automatically switch a camera to a certain preset when the scene is activated.
 This activation can be as soon as the scene is active in preview, in program, or both.
@@ -122,17 +125,19 @@ To permanently disable execution, without removing the configuration, change the
 
 #### Custom Command action execution overview
 
-|                                                                          | Load scene on preview | Transition to program | Transition back to preview | Unload scene on preview (select other scene) |
-|--------------------------------------------------------------------------|-----------------------|-----------------------|----------------------------|----------------------------------------------|
-| **Action Active**: Always<br/>**On preview exclusive**: No               | Send start command    | Send start command    | Send stop command          | Send stop command                            |
-| **Action Active**: Always<br/>**On preview exclusive**: Yes<sup>1</sup>  | -                     | Send start command    | Send stop command          | -                                            |
-| **Action Active**: Preview<br/>**On preview exclusive**: No              | Send start command    | -                     | -                          | Send stop command                            |
-| **Action Active**: Preview<br/>**On preview exclusive**: Yes<sup>1</sup> | -                     | -                     | -                          | -                                            |
-| **Action Active**: Program<br/>**On preview exclusive**: N/A             | -                     | Send start command    | Send stop command          | -                                            |
+|                                                                          | Load scene on preview | Transition to program | Transition back to preview | Unload scene on preview<sup>2</sup> |
+|--------------------------------------------------------------------------|-----------------------|-----------------------|----------------------------|-------------------------------------|
+| **Action Active**: Always<br/>**On preview exclusive**: No               | Send start command    | Send start command    | Send stop command          | Send stop command                   |
+| **Action Active**: Always<br/>**On preview exclusive**: Yes<sup>1</sup>  | -                     | Send start command    | Send stop command          | -                                   |
+| **Action Active**: Preview<br/>**On preview exclusive**: No              | Send start command    | -                     | -                          | Send stop command                   |
+| **Action Active**: Preview<br/>**On preview exclusive**: Yes<sup>1</sup> | -                     | -                     | -                          | -                                   |
+| **Action Active**: Program<br/>**On preview exclusive**: N/A             | -                     | Send start command    | Send stop command          | -                                   |
 
-
-<sup>1</sup>The checkbox 'Run action on preview only...' is active *and* for the same camera a Visca action is active (visible) on program.
+Notes:
+- <sup>1 </sup>This only applies when the checkbox 'Run action on preview only...' is checked *and* for the same camera a Visca action is active (visible) on program.
 In case no Visca camera is active on program, or a different Visca camera is active, the table result for 'No' apply.
+- <sup>2 </sup>The scene unload is executed when another scene is selected on preview. 
+The camera multiview acts as multiple preview screens. When the multiview window is closed, stop actions are also executed for all scenes visible in multiview.
 
 ### Hotkeys
 The plugin adds a number of hotkeys to the global OBS settings.

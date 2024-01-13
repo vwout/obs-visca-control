@@ -1154,9 +1154,9 @@ local function source_signal_processor(source_settings, source_name, signal)
         end
     end
 
-    -- Signals signal.show and signal.hide do not trigger an action.
-    -- These signals also trigger when multiview is activated, so does not reliably represent preview status.
-    -- In addition, the signals are no longer triggered when the scene is active on preview.
+    -- Signals signal.show and signal.hide should not trigger an action.
+    -- These signals also trigger when multiview is activated, so do not reliably represent preview status.
+    -- In addition, the signals are not re-triggered when the scene is already active on preview (or multiview)
     -- TODO: Remove handling of signal.hide when signal.hide_fe_event is send by fe_callback
     if signal.show_fe_event or signal.hide_fe_event or signal.hide then
         if (active == camera_action_active.Preview) or (active == camera_action_active.Always) then
@@ -1175,17 +1175,19 @@ local function source_signal_processor(source_settings, source_name, signal)
         camera_id,
         do_action and "process" or "no action")
 
-    if signal.show or signal.show_fe_event then
-        local current_preview_scene = obs.obs_frontend_get_current_preview_scene()
-        local current_preview_scene_name = obs.obs_source_get_name(current_preview_scene)
+    if do_action then
+        if signal.show or signal.show_fe_event then
+            local current_preview_scene = obs.obs_frontend_get_current_preview_scene()
+            local current_preview_scene_name = obs.obs_source_get_name(current_preview_scene)
 
-        if plugin_data.program_scene[current_preview_scene_name] ~= nil then
-            do_action = false
-            log("Not running start action on preview for source '%s', " ..
-                "because it transitioned from program in scene %s", source_name or "?", current_preview_scene_name)
+            if plugin_data.program_scene[current_preview_scene_name] ~= nil then
+                do_action = false
+                log("Not running start action on preview for source '%s', " ..
+                    "because it transitioned from program in scene %s", source_name or "?", current_preview_scene_name)
+            end
+
+            obs.obs_source_release(current_preview_scene)
         end
-
-        obs.obs_source_release(current_preview_scene)
     end
 
     if signal.activate then
