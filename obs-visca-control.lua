@@ -1178,34 +1178,40 @@ local function source_signal_processor(source_settings, source_name, signal)
     if do_action then
         if signal.show or signal.show_fe_event then
             local current_preview_scene = obs.obs_frontend_get_current_preview_scene()
-            local current_preview_scene_name = obs.obs_source_get_name(current_preview_scene)
+            if current_preview_scene ~= nil then
+                local current_preview_scene_name = obs.obs_source_get_name(current_preview_scene)
 
-            if plugin_data.program_scene[current_preview_scene_name] ~= nil then
-                do_action = false
-                log("Not running start action on preview for source '%s', " ..
-                    "because it transitioned from program in scene %s", source_name or "?", current_preview_scene_name)
+                if plugin_data.program_scene[current_preview_scene_name] ~= nil then
+                    do_action = false
+                    log("Not running start action on preview for source '%s', " ..
+                        "because it transitioned from program in scene %s", source_name or "?", current_preview_scene_name)
+                end
+
+                obs.obs_source_release(current_preview_scene)
             end
-
-            obs.obs_source_release(current_preview_scene)
         end
     end
 
     if signal.activate then
         local current_program_scene = obs.obs_frontend_get_current_scene()
-        local current_program_scene_name = obs.obs_source_get_name(current_program_scene)
+        if current_program_scene ~= nil then
+            local current_program_scene_name = obs.obs_source_get_name(current_program_scene)
 
-        plugin_data.program_scene[current_program_scene_name] = true
+            plugin_data.program_scene[current_program_scene_name] = true
 
-        obs.obs_source_release(current_program_scene)
+            obs.obs_source_release(current_program_scene)
+        end
     end
 
     if signal.deactivate then
         local current_preview_scene = obs.obs_frontend_get_current_preview_scene()
-        local current_preview_scene_name = obs.obs_source_get_name(current_preview_scene)
+        if current_preview_scene ~= nil then
+            local current_preview_scene_name = obs.obs_source_get_name(current_preview_scene)
 
-        plugin_data.program_scene[current_preview_scene_name] = nil
+            plugin_data.program_scene[current_preview_scene_name] = nil
 
-        obs.obs_source_release(current_preview_scene)
+            obs.obs_source_release(current_preview_scene)
+        end
     end
 
     if do_action then
@@ -1294,12 +1300,14 @@ end
 
 local function source_signal_handler(calldata, signal)
     local source = obs.calldata_source(calldata, "source")
-    local source_settings = obs.obs_source_get_settings(source)
-    local source_name = obs.obs_source_get_name(source)
+    if source ~= nil then
+        local source_settings = obs.obs_source_get_settings(source)
+        local source_name = obs.obs_source_get_name(source)
 
-    source_signal_processor(source_settings, source_name, signal)
+        source_signal_processor(source_settings, source_name, signal)
 
-    obs.obs_data_release(source_settings)
+        obs.obs_data_release(source_settings)
+    end
 end
 
 local function cb_scene_get_ptz_position(scene_props, btn_prop)
