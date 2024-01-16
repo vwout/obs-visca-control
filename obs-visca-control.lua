@@ -120,7 +120,6 @@ local function parse_preset_value(preset_value)
 
     for _, pattern in pairs(regex_patterns) do
         local v1, v2 = string.match(preset_value, pattern)
-        log("match '%s', '%s'", tostring(v1), tostring(v2))
         if (v1 ~= nil) and (v2 ~= nil) then
             if (tonumber(v1) == nil) and (tonumber(v2) ~= nil) then
                 preset_name = v1
