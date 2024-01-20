@@ -1062,18 +1062,18 @@ end
 local function camera_active_in_scene(scene_type, camera_id)
     local active = false
 
-    for scene_name, _, source_settings, source_is_visible in get_plugin_settings_from_scene(scene_type, camera_id) do
+    for scene_name, source_name, source_settings, source_is_visible in get_plugin_settings_from_scene(scene_type, camera_id) do
         if scene_name then
-            log("Current %s scene is %s", (scene_type == plugin_scene_type.Program) and "program" or "preview",
+            log("Current %s scene is '%s'", (scene_type == plugin_scene_type.Program) and "program" or "preview",
                 scene_name or "?")
 
             if source_settings and source_is_visible then
                 local source_camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
-                log("Camera ref: %d active on %s: %d", camera_id,
-                    (scene_type == plugin_scene_type.Program) and "program" or "preview", source_camera_id)
                 if camera_id == source_camera_id then
                     active = true
                 end
+                log("Cam %d is active in visca action '%s' on %s: %s", camera_id, source_name,
+                    (scene_type == plugin_scene_type.Program) and "program" or "preview", active and "Yes" or "No")
             end
         end
 
@@ -1220,7 +1220,7 @@ local function source_signal_processor(source_settings, source_name, signal)
                 if camera_active_in_scene(plugin_scene_type.Program, camera_id) then
                     do_action = false
                     log("Not running start action on preview for source '%s', " ..
-                        "because it is currently active on program", source_name or "?")
+                        "because its camera (%d) is currently active on program", source_name or "?", camera_id)
                 end
             end
         end
@@ -1229,13 +1229,13 @@ local function source_signal_processor(source_settings, source_name, signal)
             if camera_active_in_scene(plugin_scene_type.Program, camera_id) then
                 do_action = false
                 log("Not running stop action for source '%s', " ..
-                    "because it is currently active on program", source_name or "?")
+                    "because its camera (%d) is currently active on program", source_name or "?", camera_id)
             end
             if (active == camera_action_active.Preview) and
                 camera_active_in_scene(plugin_scene_type.Preview, camera_id) then
                 do_action = false
                 log("Not running stop action on preview for source '%s', " ..
-                    "because it is currently active on preview", source_name or "?")
+                    "because its camera (%d) is currently active on preview", source_name or "?", camera_id)
             end
         end
     end
@@ -1261,8 +1261,7 @@ local function fe_callback(event, data)
 
             if first then
                 if (plugin_data.preview_scene ~= scene_name) then
-                    log("OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED to '%s' for '%s'",
-                        scene_name or "?", source_name or "?")
+                    log("Preview changed to scene '%s' using source '%s', ...", scene_name or "?", source_name or "?")
                     plugin_data.preview_scene = scene_name
                     activate_sources = true
                 end
