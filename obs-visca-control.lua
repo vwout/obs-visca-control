@@ -344,8 +344,20 @@ local function get_plugin_settings_from_scene(scene_type, camera_id)
     scene_type = scene_type or plugin_scene_type.Preview
     local p_settings = {}
 
-    local scene_source = (scene_type == plugin_scene_type.Program) and obs.obs_frontend_get_current_scene() or
-        obs.obs_frontend_get_current_preview_scene()
+    local scene_source = nil
+    if type(scene_type) == "number" then
+        scene_source = (scene_type == plugin_scene_type.Program) and obs.obs_frontend_get_current_scene() or
+            obs.obs_frontend_get_current_preview_scene()
+    elseif type(scene_type) == "string" then
+        local scenes = obs.obs_frontend_get_scenes()
+        for _, eval_scene in pairs(scenes) do
+            if scene_type == obs.obs_source_get_name(eval_scene) then
+                scene_source = eval_scene
+                break
+            end
+        end
+        obs.source_list_release(scenes)
+    end
 
     if scene_source ~= nil then
         local scene_name = obs.obs_source_get_name(scene_source)
@@ -1062,7 +1074,8 @@ end
 local function camera_active_in_scene(scene_type, camera_id)
     local active = false
 
-    for scene_name, source_name, source_settings, source_is_visible in get_plugin_settings_from_scene(scene_type, camera_id) do
+    for scene_name, source_name, source_settings, source_is_visible in
+        get_plugin_settings_from_scene(scene_type, camera_id) do
         if scene_name then
             log("Current %s scene is '%s'", (scene_type == plugin_scene_type.Program) and "program" or "preview",
                 scene_name or "?")
@@ -1183,7 +1196,8 @@ local function source_signal_processor(source_settings, source_name, signal)
                 if plugin_data.program_scene[current_preview_scene_name] ~= nil then
                     do_action = false
                     log("Not running start action on preview for source '%s', " ..
-                        "because it transitioned from program in scene %s", source_name or "?", current_preview_scene_name)
+                        "because it transitioned from program in scene %s", source_name or "?",
+                        current_preview_scene_name)
                 end
 
                 obs.obs_source_release(current_preview_scene)
@@ -1195,6 +1209,29 @@ local function source_signal_processor(source_settings, source_name, signal)
         local current_program_scene = obs.obs_frontend_get_current_scene()
         if current_program_scene ~= nil then
             local current_program_scene_name = obs.obs_source_get_name(current_program_scene)
+
+            -- Before processing start actions for a scene activate signal, check the scene that was on program for
+            -- Visca commands. When that scene has Visca actions that apply to the same camera as the new program scene,
+            -- run the stop action before activating the new scene.
+            -- In case the stop action applies to a different camera than the scene for which the activate signal is
+            -- send, the stop action execution is postponed until the scene deactivation, to speed up transition.
+            for program_scene_name, program_scene_active in pairs(plugin_data.program_scene) do
+                if program_scene_active and current_program_scene_name ~= program_scene_name then
+                    for _, program_source_name, program_source_settings, program_source_is_visible in
+                        get_plugin_settings_from_scene(program_scene_name, camera_id) do
+                        if program_source_is_visible then
+                            log("Run shutdown action for scene '%s' source '%s' (camera %d) before activation of '%s'",
+                                program_scene_name, program_source_name, camera_id, current_program_scene_name)
+                            do_cam_scene_action(program_source_settings, scene_action_at.Stop)
+                        end
+                    end
+
+                    -- Set the program scene for which stop actions are already executed to false
+                    -- to prevent double execution of stop commands.
+                    -- The removal from the list is done during the actual deactivate signal handling.
+                    plugin_data.program_scene[program_scene_name] = false
+                end
+            end
 
             plugin_data.program_scene[current_program_scene_name] = true
 
