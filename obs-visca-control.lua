@@ -1219,10 +1219,14 @@ local function source_signal_processor(source_settings, source_name, signal)
                 if program_scene_active and current_program_scene_name ~= program_scene_name then
                     for _, program_source_name, program_source_settings, program_source_is_visible in
                         get_plugin_settings_from_scene(program_scene_name, camera_id) do
-                        if program_source_is_visible then
+                        if program_source_settings ~= nil and program_source_is_visible then
                             log("Run shutdown action for scene '%s' source '%s' (camera %d) before activation of '%s'",
                                 program_scene_name, program_source_name, camera_id, current_program_scene_name)
                             do_cam_scene_action(program_source_settings, scene_action_at.Stop)
+                        end
+
+                        if program_source_settings ~= nil then
+                            obs.obs_data_release(program_source_settings)
                         end
                     end
 
@@ -1314,12 +1318,12 @@ local function fe_callback(event, data)
 
             -- Activate the Visca sources in the now visible scene
             if activate_sources then
-                if source_settings and source_is_visible then
+                if source_settings ~= nil and source_is_visible then
                     source_signal_processor(source_settings, source_name, { show_fe_event = true })
                 end
             end
 
-            if source_settings then
+            if source_settings ~= nil then
                 obs.obs_data_release(source_settings)
             end
         end
