@@ -350,13 +350,15 @@ local function get_plugin_settings_from_scene(scene_type, camera_id)
             obs.obs_frontend_get_current_preview_scene()
     elseif type(scene_type) == "string" then
         local scenes = obs.obs_frontend_get_scenes()
-        for _, eval_scene in pairs(scenes) do
-            if scene_type == obs.obs_source_get_name(eval_scene) then
-                scene_source = eval_scene
-                break
+        if scenes ~= nil then
+            for _, eval_scene in pairs(scenes) do
+                if scene_type == obs.obs_source_get_name(eval_scene) then
+                    scene_source = obs.obs_source_get_ref(eval_scene)
+                    break
+                end
             end
+            obs.source_list_release(scenes)
         end
-        obs.source_list_release(scenes)
     end
 
     if scene_source ~= nil then
