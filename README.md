@@ -20,7 +20,7 @@ Besides recalling a pre-made preset, this plugin supports a few more control ope
 
 This plugin requires the camera to support Visca over IP via UDP.
 It follows the specification as designed by Sony and also supports the PTZOptics variant of Visca.
-This plugin is confirmed to work with at Avonic, BZB Gear, Everet, GlowStream, JVC, PTZOptics and Zowietek cameras.
+This plugin is confirmed to work with at Avonic, Canon, BZB Gear, Everet, GlowStream, JVC, PTZOptics and Zowietek cameras.
 Others may work as well.
 
 Also visit https://obsproject.com/forum/resources/control-visca-over-ip-based-cameras.1173/ for more information. 

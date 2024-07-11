@@ -273,6 +273,7 @@ Visca.compatibility = {
                                  -- When the first preset is 1, leave it nil (or set to 0).
                                  -- When the first preset is 0, set the offset to 1.
                                  -- The preset recalled at the camera is 'preset - <preset_nr_offset>'
+    pantilt_pan_bytes = 4        -- The number of bytes used for the pan argument in absolute pan/tilt commands
 }
 
 
@@ -431,16 +432,32 @@ function Visca.PayloadReply:get_inquiry_data_for(inquiry_payload)
         end
     elseif category == Visca.categories.pan_tilter then
         if inquiry_command == Visca.inquiry_commands.pantilt_position then
-            data = {
-                pan  = bit.lshift(bit.band(self.arguments[1] or 0, 0x0F), 12) +
-                       bit.lshift(bit.band(self.arguments[2] or 0, 0x0F), 8) +
-                       bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 4) +
-                       bit.band(self.arguments[4] or 0, 0x0F),
-                tilt = bit.lshift(bit.band(self.arguments[5] or 0, 0x0F), 12) +
-                       bit.lshift(bit.band(self.arguments[6] or 0, 0x0F), 8) +
-                       bit.lshift(bit.band(self.arguments[7] or 0, 0x0F), 4) +
-                       bit.band(self.arguments[8] or 0, 0x0F)
-            }
+            if self.argument_cnt == 8 then
+                data = {
+                    pantilt_pan_bytes = 4,
+                    pan  = bit.lshift(bit.band(self.arguments[1] or 0, 0x0F), 12) +
+                           bit.lshift(bit.band(self.arguments[2] or 0, 0x0F), 8) +
+                           bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 4) +
+                           bit.band(self.arguments[4] or 0, 0x0F),
+                    tilt = bit.lshift(bit.band(self.arguments[5] or 0, 0x0F), 12) +
+                           bit.lshift(bit.band(self.arguments[6] or 0, 0x0F), 8) +
+                           bit.lshift(bit.band(self.arguments[7] or 0, 0x0F), 4) +
+                           bit.band(self.arguments[8] or 0, 0x0F)
+                }
+            elseif self.argument_cnt == 9 then
+                data = {
+                    pantilt_pan_bytes = 5,
+                    pan  = bit.lshift(bit.band(self.arguments[1] or 0, 0x0F), 16) +
+                           bit.lshift(bit.band(self.arguments[2] or 0, 0x0F), 12) +
+                           bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 8) +
+                           bit.lshift(bit.band(self.arguments[4] or 0, 0x0F), 4) +
+                           bit.band(self.arguments[5] or 0, 0x0F),
+                    tilt = bit.lshift(bit.band(self.arguments[6] or 0, 0x0F), 12) +
+                           bit.lshift(bit.band(self.arguments[7] or 0, 0x0F), 8) +
+                           bit.lshift(bit.band(self.arguments[8] or 0, 0x0F), 4) +
+                           bit.band(self.arguments[9] or 0, 0x0F)
+                }
+            end
         end
     end
 
@@ -1347,23 +1364,44 @@ function Visca.Connection:Cam_PanTilt_Absolute(speed, pan, tilt)
 
     local msg = Visca.Message.new()
     msg.payload_type = Visca.payload_types.visca_command
-    msg.payload = {
-        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
-        Visca.packet_consts.command,
-        Visca.categories.pan_tilter,
-        Visca.commands.pantilt_absolute,
-        speed, -- Pan speed
-        speed, -- Tilt speed
-        bit.band(bit.rshift(pan, 12), 0x0F),
-        bit.band(bit.rshift(pan, 8), 0x0F),
-        bit.band(bit.rshift(pan, 4), 0x0F),
-        bit.band(pan, 0x0F),
-        bit.band(bit.rshift(tilt, 12), 0x0F),
-        bit.band(bit.rshift(tilt, 8), 0x0F),
-        bit.band(bit.rshift(tilt, 4), 0x0F),
-        bit.band(tilt, 0x0F),
-        Visca.packet_consts.terminator
-    }
+    if not self.compatibility.pantilt_pan_bytes or self.compatibility.pantilt_pan_bytes == 4 then
+        msg.payload = {
+            Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+            Visca.packet_consts.command,
+            Visca.categories.pan_tilter,
+            Visca.commands.pantilt_absolute,
+            speed, -- Pan speed
+            speed, -- Tilt speed
+            bit.band(bit.rshift(pan, 12), 0x0F),
+            bit.band(bit.rshift(pan, 8), 0x0F),
+            bit.band(bit.rshift(pan, 4), 0x0F),
+            bit.band(pan, 0x0F),
+            bit.band(bit.rshift(tilt, 12), 0x0F),
+            bit.band(bit.rshift(tilt, 8), 0x0F),
+            bit.band(bit.rshift(tilt, 4), 0x0F),
+            bit.band(tilt, 0x0F),
+            Visca.packet_consts.terminator
+        }
+    elseif self.compatibility.pantilt_pan_bytes == 5 then
+        msg.payload = {
+            Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+            Visca.packet_consts.command,
+            Visca.categories.pan_tilter,
+            Visca.commands.pantilt_absolute,
+            speed, -- Pan/Tilt speed
+            00,    -- Fixed
+            bit.band(bit.rshift(pan, 16), 0x0F),
+            bit.band(bit.rshift(pan, 12), 0x0F),
+            bit.band(bit.rshift(pan, 8), 0x0F),
+            bit.band(bit.rshift(pan, 4), 0x0F),
+            bit.band(pan, 0x0F),
+            bit.band(bit.rshift(tilt, 12), 0x0F),
+            bit.band(bit.rshift(tilt, 8), 0x0F),
+            bit.band(bit.rshift(tilt, 4), 0x0F),
+            bit.band(tilt, 0x0F),
+            Visca.packet_consts.terminator
+        }
+    end
 
     return self:send(msg)
 end

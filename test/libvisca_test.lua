@@ -221,6 +221,17 @@ function test_pantilt()
     lunit.assert_equal(23, t_size)
     lunit.assert_equal(Visca.limits.PAN_MIN_SPEED, string.byte(t_data, 13))
     lunit.assert_equal(Visca.limits.PAN_MIN_SPEED, string.byte(t_data, 14))
+    lunit.assert_equal(0x0F, string.byte(t_data, 15))
+    lunit.assert_equal(0x0C, string.byte(t_data, 16))
+
+    clear_transmission_queue(connection)
+    connection:set_compatibility({pantilt_pan_bytes = 5})
+    t_size, t_data = connection:Cam_PanTilt_Absolute(0, 0xABCDE, 0x1234)
+    lunit.assert_equal(24, t_size)
+    lunit.assert_equal(Visca.limits.PAN_MIN_SPEED, string.byte(t_data, 13))
+    lunit.assert_equal(0, string.byte(t_data, 14))
+    lunit.assert_equal(0x0A, string.byte(t_data, 15))
+    lunit.assert_equal(0x04, string.byte(t_data, 23))
 end
 
 function test_zoom()
@@ -333,6 +344,24 @@ function test_reply_parsing_inquiry_brightnes()
     local msg_inq_brightness_data = msg_inq_brightness.message.reply:get_inquiry_data_for({0,0,Visca.categories.color,Visca.inquiry_commands.brightness_position})
     lunit.assert_not_nil(msg_inq_brightness_data)
     lunit.assert_equal(0x69, msg_inq_brightness_data.brightness)
+end
+
+function test_reply_parsing_inquiry_pt_position()
+    local msg_inq_pt4_position = Visca.Message.new():from_data("\x90\x50\x0A\x0B\x0C\x0D\x01\x02\x03\x04\xFF"):dump("msg_inq_pt4_position")
+    lunit.assert_not_nil(msg_inq_pt4_position.message.reply)
+    local msg_inq_pt4_position_data = msg_inq_pt4_position.message.reply:get_inquiry_data_for({0,0,Visca.categories.pan_tilter,Visca.inquiry_commands.pantilt_position})
+    lunit.assert_not_nil(msg_inq_pt4_position_data)
+    lunit.assert_equal(4, msg_inq_pt4_position_data.pantilt_pan_bytes)
+    lunit.assert_equal(0xABCD, msg_inq_pt4_position_data.pan)
+    lunit.assert_equal(0x1234, msg_inq_pt4_position_data.tilt)
+
+    local msg_inq_pt5_position = Visca.Message.new():from_data("\x90\x50\x01\x02\x03\x04\x05\x0A\x0B\x0C\x0D\xFF"):dump("msg_inq_pt5_position")
+    lunit.assert_not_nil(msg_inq_pt5_position.message.reply)
+    local msg_inq_pt5_position_data = msg_inq_pt5_position.message.reply:get_inquiry_data_for({0,0,Visca.categories.pan_tilter,Visca.inquiry_commands.pantilt_position})
+    lunit.assert_not_nil(msg_inq_pt5_position_data)
+    lunit.assert_equal(5, msg_inq_pt5_position_data.pantilt_pan_bytes)
+    lunit.assert_equal(0x12345, msg_inq_pt5_position_data.pan)
+    lunit.assert_equal(0xABCD, msg_inq_pt5_position_data.tilt)
 end
 
 function test_inquiry()
