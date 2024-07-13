@@ -395,6 +395,7 @@ end
 function Visca.PayloadReply:get_inquiry_data_for(inquiry_payload)
     local _,_,category,inquiry_command = unpack(inquiry_payload)
     local data = {}
+    local unsupported_nr_of_arguments = false
 
     if category == Visca.categories.interface then
         if inquiry_command == Visca.inquiry_commands.software_version then
@@ -410,25 +411,39 @@ function Visca.PayloadReply:get_inquiry_data_for(inquiry_payload)
                     rom_version    = bit.lshift(self.arguments[5] or 0, 8) + (self.arguments[6] or 0),
                     max_nr_sockets = bit.band(self.arguments[7] or 0, 0x0F),
                 }
+            else
+                unsupported_nr_of_arguments = true
             end
         end
     elseif category == Visca.categories.camera then
         if inquiry_command == Visca.inquiry_commands.color_gain then
-            data = {
-                color_level = bit.band(self.arguments[4] or 0, 0x0F)
-            }
+            if self.argument_cnt == 4 then
+                data = {
+                    color_level = bit.band(self.arguments[4] or 0, 0x0F)
+                }
+            else
+                unsupported_nr_of_arguments = true
+            end
         elseif inquiry_command == Visca.inquiry_commands.brightness_position then
-            data = {
-                brightness = bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 4) +
-                             bit.band(self.arguments[4] or 0, 0x0F),
-            }
+            if self.argument_cnt == 4 then
+                data = {
+                    brightness = bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 4) +
+                                 bit.band(self.arguments[4] or 0, 0x0F),
+                }
+            else
+                unsupported_nr_of_arguments = true
+            end
         elseif inquiry_command == Visca.inquiry_commands.zoom_position then
-            data = {
-                zoom = bit.lshift(bit.band(self.arguments[1] or 0, 0x0F), 12) +
-                       bit.lshift(bit.band(self.arguments[2] or 0, 0x0F), 8) +
-                       bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 4) +
-                       bit.band(self.arguments[4] or 0, 0x0F),
-            }
+            if self.argument_cnt == 4 then
+                data = {
+                    zoom = bit.lshift(bit.band(self.arguments[1] or 0, 0x0F), 12) +
+                           bit.lshift(bit.band(self.arguments[2] or 0, 0x0F), 8) +
+                           bit.lshift(bit.band(self.arguments[3] or 0, 0x0F), 4) +
+                           bit.band(self.arguments[4] or 0, 0x0F),
+                }
+            else
+                unsupported_nr_of_arguments = true
+            end
         end
     elseif category == Visca.categories.pan_tilter then
         if inquiry_command == Visca.inquiry_commands.pantilt_position then
@@ -457,6 +472,20 @@ function Visca.PayloadReply:get_inquiry_data_for(inquiry_payload)
                            bit.lshift(bit.band(self.arguments[8] or 0, 0x0F), 4) +
                            bit.band(self.arguments[9] or 0, 0x0F)
                 }
+            else
+                unsupported_nr_of_arguments = true
+            end
+        end
+    end
+
+    if next(data) == nil then
+        if Visca.debug then
+            if unsupported_nr_of_arguments then
+                print(string.format("Unsupported number of arguments received for inquiry %d (%d)",
+                                    inquiry_command, self.argument_cnt))
+            else
+                print(string.format("Unsupported inquiry type received (%d) for command category %d",
+                                    inquiry_command, category))
             end
         end
     end
