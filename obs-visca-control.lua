@@ -501,6 +501,10 @@ local function open_visca_connection(camera_id)
                             table.insert(ptz_vals, "Zoom: n/a (-)")
                         end
 
+                        if reply_data.pantilt_pan_bytes then
+                            connection:set_compatibility({pantilt_pan_bytes = reply_data.pantilt_pan_bytes})
+                        end
+
                         for scene_name, source_name, source_settings, _ in
                             get_plugin_settings_from_scene(plugin_scene_type.Preview, camera_id) do
                             if source_settings then
