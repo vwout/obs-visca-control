@@ -45,7 +45,9 @@ Before the plugin can be used in a scene, it requires configuration in the `Scri
 ![Plugin configuration](images/docs/plugin_settings.png)
 
 Start by enumerating the number of cameras that you want to control.
-For each camera a set of configuration properties will be shown:
+For each camera a set of configuration properties will be shown.
+
+### Camera settings
 - _Name_: A friendly name for easy recognition of the camera.
 - _Version Info_: The model, type and firmware (in case available and supported).
 - _Address_: The IP address at which the camera is available.
@@ -76,14 +78,17 @@ The number of presets that are supported may vary from camera to camera. This sc
 The presentation on the interface of the camera might not be clear on this topic, so keep this in mind while testing presets.
 JVC camera models are known to demonstrate this behavior.
 
+### Backup
 ![Plugin backup and debug](images/docs/plugin_settings-backup.png)
 The bottom part of the plugin configuration settings section provides the ability to back up (export) the plugin settings to a 'json' file, restore (import) settings from a backup file.
 This backup only contains the plugin configuration settings, thus the camera and preset configuration.
 The scene settings are stored with each scene.
 
-In case of interaction problems between this plugin and a camera, it might be of use to enable verbose logging.
+### Troubleshooting
+In case of interaction problems between this plugin and a camera, it might be of use to enable `Enable verbose (debug) logging`.
+The possible settings are `None` (no logging), `Info` (internal status information) and `Debug` (detailed data including raw Visca protocol messages).
 This will provide detailed information about the plugin functionality in the `Script Log`.
-Activate verbose logging and attach the log when reaching out for help.
+Activate verbose logging using the setting `Debug` and attach the log when reaching out for help via the OBS forum or when [creating an issue](//github.com/vwout/obs-visca-control/issues).
 
 ## Usage
 ### In a scene

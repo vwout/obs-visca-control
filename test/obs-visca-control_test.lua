@@ -12,7 +12,7 @@ local Visca = require("libvisca")
 _G._UNITTEST = true
 require("obs-visca-control")
 _T._plugin_data.debug = false
-
+_T._plugin_settings["debug_logging"] = 0
 
 module("obs-visca-control_test", lunit.testcase, package.seeall)
 

@@ -83,30 +83,74 @@ local camera_action_active = {
     Always = 3,
 }
 
-local function log(fmt, ...)
-    if plugin_data.debug or obs.obs_data_get_bool(plugin_settings, "debug_logging") then
-        local info = debug.getinfo(2, "nl")
-        local func = info.name or "?"
-        local line = info.currentline
+local logging_levels = {
+    None = 0,
+    -- Leave some room for future addition of Error, Warning, ..
+    Info = 7,
+    Debug = 9
+}
 
-        local args = {}
-        for i, a in ipairs(arg or { ... }) do
-            if type(a) == "table" then
-                local kvs
-                for k, v in pairs(a) do
-                    if kvs then
-                        kvs = string.format("%s, %s=%s", kvs, k, tostring(v))
-                    else
-                        kvs = string.format("%s=%s", k, tostring(v))
-                    end
-                end
-                args[i] = kvs or "-"
-            else
-                args[i] = a
-            end
+local function get_context(level)
+    level = level or 2
+    local info = debug.getinfo(level + 1, "nl")
+    local func = info.name or "?"
+    local line = info.currentline
+
+    local nesting = 0
+    while true do
+        if not debug.getinfo(nesting + level + 2) then
+            break
+        else
+            nesting = nesting + 1
         end
+    end
 
-        print(string.format("%s (%d): %s", func, line, string.format(fmt, unpack(args or {})) or "-"))
+    return func, line, nesting
+end
+
+local function log_with_context(context, func, line, nesting, fmt, ...)
+    local args = {}
+    for i, a in ipairs(arg or { ... }) do
+        if type(a) == "table" then
+            local kvs
+            for k, v in pairs(a) do
+                if kvs then
+                    kvs = string.format("%s, %s=%s", kvs, k, tostring(v))
+                else
+                    kvs = string.format("%s=%s", k, tostring(v))
+                end
+            end
+            args[i] = kvs or "-"
+        else
+            args[i] = a
+        end
+    end
+
+    local status, msg = pcall(string.format, fmt, unpack(args or {}))
+    if not status then
+        if fmt then
+            msg = string.format("Error formatting log message '%s': %s", fmt, msg)
+        else
+            msg = "-"
+        end
+    end
+
+    print(string.format("%s:%-33s %s%s", context or "?", string.format("%s (%d):", func, line),
+                                         string.rep(" ", nesting), msg or "-"))
+end
+
+local function log(fmt, ...)
+    if plugin_data.debug or obs.obs_data_get_bool(plugin_settings, "debug_logging") or
+       (obs.obs_data_get_int(plugin_settings, "debug_logging") >= logging_levels.Info) then
+        local func, line, nesting = get_context(2)
+        log_with_context("script", func, line, nesting, fmt, unpack(arg or { ... }))
+    end
+end
+
+local function log_libvisca(fmt, ...)
+    if obs.obs_data_get_int(plugin_settings, "debug_logging") >= logging_levels.Debug then
+        local func, line, nesting = get_context(4)
+        log_with_context("libvisca", func, line, nesting, fmt, unpack(arg or { ... }))
     end
 end
 
@@ -851,6 +895,10 @@ function script_load(settings)
 
     print(string.format("%s version %s", plugin_info.name, plugin_info.version))
 
+    if obs.obs_data_get_int(plugin_settings, "debug_logging") >= logging_levels.Debug then
+        Visca.set_log_function(log_libvisca)
+    end
+
     local plugin_hotkey_actions = {
         { name = "suppress_scene_actions", descr = "Suppress actions on scenes",
             action = plugin_actions.Suppress_Scene_Actions },
@@ -964,7 +1012,7 @@ function script_properties()
     obs.obs_property_set_modified_callback(num_cams, prop_num_cams)
 
     local num_cameras = obs.obs_data_get_int(plugin_settings, "num_cameras")
-    log("num_cameras %d", num_cameras)
+    log("Configured number of cameras: %d", num_cameras)
 
     local cams = obs.obs_properties_add_list(props, "cameras", "Camera", obs.OBS_COMBO_TYPE_LIST,
         obs.OBS_COMBO_FORMAT_INT)
@@ -981,7 +1029,21 @@ function script_properties()
     obs.obs_properties_add_button(backup_props, "backup_restore", "Restore from backup", cb_backup_restore)
     obs.obs_properties_add_group(props, "backup_grp", "Backup and restore", obs.OBS_GROUP_NORMAL, backup_props)
 
-    obs.obs_properties_add_bool(props, "debug_logging", "Enable verbose (debug) logging")
+    local debug_prop = obs.obs_properties_add_list(props, "debug_logging", "Enable verbose (debug) logging",
+        obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_INT)
+    obs.obs_property_list_add_int(debug_prop, "None", logging_levels.None)
+    obs.obs_property_list_add_int(debug_prop, "Info (Verbose)", logging_levels.Info)
+    obs.obs_property_list_add_int(debug_prop, "Debug", logging_levels.Debug)
+    if obs.obs_data_get_bool(plugin_settings, "debug_logging") then
+        obs.obs_data_set_default_int(plugin_settings, "debug_logging", logging_levels.Info)
+    else
+        obs.obs_data_set_default_int(plugin_settings, "debug_logging", logging_levels.None)
+    end
+    obs.obs_property_set_modified_callback(debug_prop, function(_, _, _)
+        if obs.obs_data_get_int(plugin_settings, "debug_logging") >= logging_levels.Debug then
+            Visca.set_log_function(log_libvisca)
+        end
+    end)
 
     return props
 end

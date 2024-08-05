@@ -9,6 +9,7 @@ local Visca = {}
 Visca.default_port = 52381
 Visca.default_camera_nr = 1
 Visca.debug = false
+Visca.log_fnc = nil
 
 Visca.EnumMeta = {}
 Visca.EnumMeta.__index = Visca.EnumMeta
@@ -276,6 +277,24 @@ Visca.compatibility = {
     pantilt_pan_bytes = 4        -- The number of bytes used for the pan argument in absolute pan/tilt commands
 }
 
+local function log(fmt, ...)
+    if Visca.log_fnc then
+        local status, msg = pcall(Visca.log_fnc, fmt, unpack(arg or { ... }))
+        if not status then
+            print(string.format("Logging '%s' failed: %s", fmt, msg))
+        end
+    elseif Visca.debug then
+        print(string.format(fmt, unpack(arg or { ... })))
+    end
+end
+
+--- Sets the function to be called for logging as alternative to using print
+---
+--- @param func fun(fmt: string, ...)
+function Visca.set_log_function(func)
+    Visca.log_fnc = func
+    Visca.debug = true
+end
 
 --- @class PayloadCommand object
 Visca.PayloadCommand = {}
@@ -481,11 +500,9 @@ function Visca.PayloadReply:get_inquiry_data_for(inquiry_payload)
     if next(data) == nil then
         if Visca.debug then
             if unsupported_nr_of_arguments then
-                print(string.format("Unsupported number of arguments received for inquiry %d (%d)",
-                                    inquiry_command, self.argument_cnt))
+                log("Unsupported number of arguments received for inquiry %d (%d)", inquiry_command, self.argument_cnt)
             else
-                print(string.format("Unsupported inquiry type received (%d) for command category %d",
-                                    inquiry_command, category))
+                log("Unsupported inquiry type received (%d) for command category %d", inquiry_command, category)
             end
         end
     end
@@ -566,8 +583,7 @@ function Visca.Message:from_data(data)
                     if self.payload_size > #self.payload then
                         self.payload_size = #self.payload
                     end
-                    print(string.format("Ignoring byte %d, payload index beyond message length %d",
-                                        8+b, message_length))
+                    log("Ignoring byte %d, payload index beyond message length %d", 8+b, message_length)
                 end
             end
         elseif message_length >= 1 and message_length <= 16 then
@@ -640,49 +656,52 @@ function Visca.Message:as_string(mode)
 end
 
 function Visca.Message:dump(name, prefix, mode)
+    local str_a = {}
+
     if name then
-      print('\n' .. name .. ':')
+      table.insert(str_a, '\n' .. name .. ':')
     end
     prefix = prefix or '- '
 
-    print(string.format('%sMessage:         %s',
-                        prefix or '',
-                        self:as_string(mode)))
-    print(string.format("%sPayload type:    %s (0x%02X%02X)",
-                        prefix or '',
-                        Visca.payload_type_names[self.payload_type] or 'Unknown',
-                        math.floor(self.payload_type/256), self.payload_type % 256))
-    print(string.format('%sPayload length:  %d',
-                        prefix or '',
-                        (self.payload_size > 0) and self.payload_size or #self.payload))
-    print(string.format('%sSequence number: %d',
-                        prefix or '',
-                        self.seq_nr))
+    table.insert(str_a, string.format('%sMessage:         %s',
+                                      prefix or '',
+                                      self:as_string(mode)))
+    table.insert(str_a, string.format("%sPayload type:    %s (0x%02X%02X)",
+                                      prefix or '',
+                                      Visca.payload_type_names[self.payload_type] or 'Unknown',
+                                      math.floor(self.payload_type/256), self.payload_type % 256))
+    table.insert(str_a, string.format('%sPayload length:  %d',
+                                      prefix or '',
+                                      (self.payload_size > 0) and self.payload_size or #self.payload))
+    table.insert(str_a, string.format('%sSequence number: %d',
+                                      prefix or '',
+                                      self.seq_nr))
 
     if self.message.command then
-        print(string.format('%sPayload:         Command',
-                            prefix or ''))
-        print(string.format('%s                 %s',
-                            prefix or '',
-                            self.message.command:as_string()))
+        table.insert(str_a, string.format('%sPayload:         Command',
+                                          prefix or ''))
+        table.insert(str_a, string.format('%s                 %s',
+                                          prefix or '',
+                                          self.message.command:as_string()))
     elseif self.message.reply then
-        print(string.format('%sPayload:         Reply',
-                            prefix or ''))
-        print(string.format('%s                 %s',
-                            prefix or '',
-                            self.message.reply:as_string()))
+        table.insert(str_a, string.format('%sPayload:         Reply',
+                                          prefix or ''))
+        table.insert(str_a, string.format('%s                 %s',
+                                          prefix or '',
+                                          self.message.reply:as_string()))
     else
-        print(string.format('%sPayload:         %s',
-                            prefix or '',
-                            tostring(self.payload)))
+        table.insert(str_a, string.format('%sPayload:         %s',
+                                          prefix or '',
+                                          tostring(self.payload)))
         for k,v in pairs(self.payload) do
-            print(string.format('%sPayload:         - byte %02X: 0x%02X',
-                                prefix or '',
-                                k,
-                                v))
+            table.insert(str_a, string.format('%sPayload:         - byte %02X: 0x%02X',
+                                              prefix or '',
+                                              k,
+                                              v))
         end
-
     end
+
+    log(table.concat(str_a, '\n'))
 
     return self
 end
@@ -713,24 +732,24 @@ function Visca.ReplyServer.add_listener_for(address, port)
                         cnt = cnt + 1
 
                         if Visca.debug then
-                            print(string.format("Started new reply server at %s:%s",
-                                sock_address:get_ip(), sock_address:get_port()))
+                            log("Started new reply server at %s:%s",
+                                sock_address:get_ip(), sock_address:get_port())
                         end
                     else
-                        print(string.format("Failed to bind server to %s:%s: %s (%d)",
-                            sock_address:get_ip(), sock_address:get_port(), err or "Unknown", num or 0))
+                        log("Failed to bind server to %s:%s: %s (%d)",
+                            sock_address:get_ip(), sock_address:get_port(), err or "Unknown", num or 0)
                     end
                 else
-                    print(string.format("Failed to set nonblocking server at %s:%s: %s (%d)",
-                        sock_address:get_ip(), sock_address:get_port(), err or "Unknown", num or 0))
+                    log("Failed to set nonblocking server at %s:%s: %s (%d)",
+                        sock_address:get_ip(), sock_address:get_port(), err or "Unknown", num or 0)
                 end
             else
-                print(string.format("Failed to start new reply server at %s:%s: %s (%d)",
-                    sock_address:get_ip(), sock_address:get_port(), err or "Unknown", num or 0))
+                log("Failed to start new reply server at %s:%s: %s (%d)",
+                    sock_address:get_ip(), sock_address:get_port(), err or "Unknown", num or 0)
             end
         else
-            print(string.format("Failed to determine server address for port %d: %s (%d)",
-                port, err or "Unknown", num or 0))
+            log("Failed to determine server address for port %d: %s (%d)",
+                port, err or "Unknown", num or 0)
         end
     end
 
@@ -930,7 +949,7 @@ function Visca.Connection:__exec_callback(callback_type, t, ...)
             if type(callback) == 'function' then
                 local status,result_or_error = pcall(callback, t, unpack(arg or {}))
                 if not status then
-                    print(string.format("Callback %s for %s failed: %s", id, callback_type, result_or_error))
+                    log("Callback %s for %s failed: %s", id, callback_type, result_or_error)
                 end
             end
         end
@@ -972,7 +991,7 @@ function Visca.Connection:__transmit(message)
     local sock = self.sock
 
     if Visca.debug then
-        print(string.format("Connection transmit %s", message:as_string(self.mode)))
+        log("Connection transmit %s", message:as_string(self.mode))
         message:dump(nil, nil, self.mode)
     end
 
@@ -1064,7 +1083,7 @@ function Visca.Connection:close()
         self.sock = nil
     end
     if #self.transmission_queue > 0 then
-        print(string.format("Warning: %d unfinished messages in queue", #self.transmission_queue))
+        log("Warning: %d unfinished messages in queue", #self.transmission_queue)
     end
 end
 
@@ -1104,7 +1123,7 @@ function Visca.Connection:receive()
             local msg = Visca.Message.new()
             msg:from_data(data)
             if Visca.debug then
-                print(string.format("Received %s", msg:as_string(self.mode)))
+                log("Received %s", msg:as_string(self.mode))
             end
 
             if msg.message.reply then
@@ -1118,8 +1137,7 @@ function Visca.Connection:receive()
                         self:__exec_callback('error', transmission)
                     end
                 else
-                    print(string.format("Warning: Unable to find send message for reply: %s",
-                        msg:as_string(self.mode)))
+                    log("Warning: Unable to find send message for reply: %s", msg:as_string(self.mode))
                 end
             end
 
@@ -1257,7 +1275,7 @@ function Visca.Connection:Cam_Focus_Mode(mode)
         return self:send(msg)
     else
         if Visca.debug then
-            print(string.format("Cam_Focus_Mode invalid mode (0x%04x)", mode or 0))
+            log("Cam_Focus_Mode invalid mode (0x%04x)", mode or 0)
         end
         return 0
     end
@@ -1380,7 +1398,7 @@ function Visca.Connection:Cam_PanTilt(direction, pan_speed, tilt_speed)
         return self:send(msg)
     else
         if Visca.debug then
-            print(string.format("Cam_PanTilt invalid direction (%d)", direction))
+            log("Cam_PanTilt invalid direction (%d)", direction)
         end
         return 0
     end
