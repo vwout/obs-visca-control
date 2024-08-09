@@ -1284,7 +1284,7 @@ local function source_signal_processor(source_settings, source_name, signal)
             -- In case the stop action applies to a different camera than the scene for which the activate signal is
             -- send, the stop action execution is postponed until the scene deactivation, to speed up transition.
             for program_scene_name, program_scene_active in pairs(plugin_data.program_scene) do
-                if program_scene_active and current_program_scene_name ~= program_scene_name then
+                if program_scene_active and (current_program_scene_name ~= program_scene_name) then
                     for _, program_source_name, program_source_settings, program_source_is_visible in
                         get_plugin_settings_from_scene(program_scene_name, camera_id) do
                         if program_source_settings ~= nil and program_source_is_visible then

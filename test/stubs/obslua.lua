@@ -1,3 +1,5 @@
+--- @meta OBS
+
 local socket = require("socket")
 
 -- Definition of globals to reproduce the Lua scripting environment in OBS - bfxdev 2020
@@ -26,7 +28,7 @@ function gcinfo(param) end
 --- either a new, empty metatable on it or using the metatable of another newproxy instance. We are
 --- then free to modify the metatable from Lua. This is the only way to create a proxy object from
 --- Lua which honors certain metamethods, such as __len.
---- @param param bool
+--- @param param boolean
 function newproxy(param) end
 
 --- OBS function that returns the path of the folder of the current script
@@ -38,6 +40,57 @@ function swig_equals() end
 
 --- SWIG function that returns as a string the type of object pointed to by the argument (assuming it was a SWIG wrapped object)
 function swig_type(obj) end
+
+--- OBS Objects
+
+--- @class obs_data_item Data Settings
+--- @field name string Name of data item
+local obs_data_item = {}
+
+--- @class obs_data Data Settings
+--- @field json string Json representation
+--- @field items array<obs_data_item> List of obs_data_items
+local obs_data = {}
+
+--- @type table<obs_data>
+local obs_data_array = {}
+
+--- @class obs_property Data Settings
+local obs_property = {}
+
+--- @class obs_properties Data Settings
+local obs_properties = {}
+
+--- @class obs_encoder Encoder
+local obs_encoder = {}
+
+--- @enum obs_frontend_event OBS Frontend Event
+local obs_frontend_event = {}
+
+--- @class obs_frontend_source 
+local obs_frontend_source = {}
+
+--- @type table<obs_frontend_source>
+local obs_frontend_source_list = {}
+
+--- @class obs_hotkey data structure
+--- @field id integer Internal hotkey identifier
+--- @field name string The shortname
+--- @field description string Descriptive name of the shorcut show in the UI
+local obs_hotkey = {}
+
+--- @class obs_scene data structure
+--- @field source obs_source
+local obs_scene = {}
+
+--- @class obs_scene_item data structure
+local obs_scene_item = {}
+
+--- @class obs_source data structure
+local obs_source = {}
+
+--- @type table<obs_source>
+local sources_list = {}
 
 --- Main obslua module
 obslua = {}
@@ -461,7 +514,6 @@ function obslua.blog(log_level, format) end
 ---
 --- C definition: `void *bmalloc(size_t size)`
 --- @param size number
---- @return void
 function obslua.bmalloc(size) end
 
 --- Duplicates memory.
@@ -469,7 +521,6 @@ function obslua.bmalloc(size) end
 --- C definition: `void *bmemdup(const void *ptr, size_t size)`
 --- @param ptr ref_void*
 --- @param size number
---- @return void
 function obslua.bmemdup(ptr, size) end
 
 --- Returns current number of active allocations.
@@ -484,7 +535,6 @@ function obslua.bnum_allocs() end
 --- C definition: `void *brealloc(void *ptr, size_t size)`
 --- @param ptr ref_void*
 --- @param size number
---- @return void
 function obslua.brealloc(ptr, size) end
 
 --- Duplicates a string.
@@ -578,7 +628,7 @@ function obslua.calldata_free(data) end
 --- C definition: Not available
 --- @param param1 calldata
 --- @param param2 string
---- @param param3 bool
+--- @param param3 boolean
 function obslua.calldata_get_bool(param1, param2, param3) end
 
 --- Not mentioned in OBS documentation
@@ -659,7 +709,6 @@ function obslua.calldata_int(data, name) end
 --- C definition: `void *calldata_ptr(const calldata_t *data, const char *name)`
 --- @param data calldata
 --- @param name string
---- @return void
 function obslua.calldata_ptr(data, name) end
 
 --- Casts a pointer parameter of a calldata_t object to an
@@ -1187,7 +1236,6 @@ function obslua.gs_effect_get_technique(effect, name) end
 ---
 --- C definition: `void *gs_effect_get_val(gs_eparam_t *param)`
 --- @param param gs_effect_param
---- @return void
 function obslua.gs_effect_get_val(param) end
 
 --- Returns the size in bytes of the param's current value.
@@ -1714,7 +1762,6 @@ function obslua.gs_indexbuffer_flush_direct(indexbuffer, data) end
 ---
 --- C definition: `void     *gs_indexbuffer_get_data(const gs_indexbuffer_t *indexbuffer)`
 --- @param indexbuffer gs_index_buffer
---- @return void
 function obslua.gs_indexbuffer_get_data(indexbuffer) end
 
 --- Gets the number of indices associated with this index buffer.
@@ -2574,7 +2621,7 @@ function obslua.gs_timer_range_end(param1) end
 ---
 --- C definition: Not available
 --- @param param1 gs_timer_range
---- @param param2 bool
+--- @param param2 boolean
 --- @param param3 unsigned_long_long
 function obslua.gs_timer_range_get_data(param1, param2, param3) end
 
@@ -3433,7 +3480,9 @@ function obslua.obs_data_get_autoselect_vec4(param1, param2, param3) end
 --- @param data obs_data
 --- @param name string
 --- @return boolean
-function obslua.obs_data_get_bool(data, name) end
+function obslua.obs_data_get_bool(data, name)
+    return (data[name] or (data[name] == "true") or (data[name] == "1")) and true or false
+end
 
 --- Not mentioned in OBS documentation
 ---
@@ -4209,7 +4258,7 @@ function obslua.obs_data_set_quat(param1, param2, param3) end
 --- C definition: `void obs_data_set_string(obs_data_t *data, const char *name, const char *val)`
 --- @param data obs_data
 --- @param name string
---- @param val string
+--- @param val string|nil
 function obslua.obs_data_set_string(data, name, val) end
 
 --- Not mentioned in OBS documentation
@@ -4880,8 +4929,8 @@ function obslua.obs_find_module_file(module, file) end
 --- :param private_data: Private data associated with the callback.
 ---
 --- C definition: `void obs_frontend_add_event_callback(obs_frontend_event_cb callback, void *private_data)`
---- @param callback obs_frontend_event_cb
---- @param private_data void*
+--- @param callback fun(event: obs_frontend_event, private_data: void*)
+--- @param private_data void*|nil
 function obslua.obs_frontend_add_event_callback(callback, private_data) end
 
 --- Adds a callback that will be called when the current scene collection
@@ -4995,8 +5044,8 @@ function obslua.obs_frontend_get_scene_names() end
 ---                 :c:func:`obs_frontend_source_list_free`.
 ---
 --- C definition: `void obs_frontend_get_scenes(struct obs_frontend_source_list *sources)`
---- @param sources obs_frontend_source_list*
-function obslua.obs_frontend_get_scenes(sources) end
+--- @return obs_frontend_source_list
+function obslua.obs_frontend_get_scenes() end
 
 --- :return: A new reference to the current streaming output.
 ---
@@ -5078,7 +5127,7 @@ function obslua.obs_frontend_recording_stop() end
 --- :param private_data: Private data associated with the callback.
 ---
 --- C definition: `void obs_frontend_remove_event_callback(obs_frontend_event_cb callback, void *private_data)`
---- @param callback obs_frontend_event_cb
+--- @param callback fun(event: obs_frontend_event, private_data: void*)
 --- @param private_data void*
 function obslua.obs_frontend_remove_event_callback(callback, private_data) end
 
@@ -5198,7 +5247,6 @@ function obslua.obs_frontend_streaming_stop() end
 --- Takes a screenshot of the main OBS output.
 ---
 --- C definition: `void *obs_frontend_take_screenshot(void)`
---- @return void*
 function obslua.obs_frontend_take_screenshot() end
 
 --- Takes a screenshot of the specified source.
@@ -5206,7 +5254,6 @@ function obslua.obs_frontend_take_screenshot() end
 --- :param source: The source to take screenshot of.
 --- C definition: `void *obs_frontend_take_source_screenshot(obs_source_t *source)`
 --- @param source obs_source
---- @return void*
 function obslua.obs_frontend_take_source_screenshot(source) end
 
 --- Not mentioned in OBS documentation
@@ -5709,16 +5756,17 @@ function obslua.obs_hotkey_pair_unregister(param1) end
 ---                     the callback.
 ---
 --- C definition: Not available
---- @param name unknown
---- @param description unknown
+--- @param name string
+--- @param description string
 --- @param callback unknown
---- @return unknown
+--- @return integer
 function obslua.obs_hotkey_register_frontend(name, description, callback) end
 
 --- Not mentioned in OBS documentation
 ---
 --- C definition: Not available
 --- @param param1 number
+--- @return obs_data_array
 function obslua.obs_hotkey_save(param1) end
 
 --- Not mentioned in OBS documentation
@@ -7081,7 +7129,6 @@ function obslua.obs_properties_get_flags(props) end
 ---
 --- C definition: `void *obs_properties_get_param(obs_properties_t *props)`
 --- @param props obs_properties
---- @return void
 function obslua.obs_properties_get_param(props) end
 
 --- C definition: `obs_properties_t *obs_properties_get_parent(obs_properties_t *props)`
@@ -7542,8 +7589,8 @@ function obslua.obs_property_set_long_description(p, long_description) end
 ---                 obs_data_t *settings);
 ---
 --- C definition: `void obs_property_set_modified_callback(obs_property_t *p, obs_property_modified_t modified)`
---- @param p obs_property_t*
---- @param modified obs_property_modified_t
+--- @param p obs_property
+--- @param modified fun(props: obs_properties, property: obs_property, settings: obs_data): boolean
 function obslua.obs_property_set_modified_callback(p, modified) end
 
 --- Allows the ability to change the properties depending on what
@@ -7849,10 +7896,8 @@ function obslua.obs_scene_duplicate(scene, name, type) end
 ---
 --- C definition: Not available
 --- @param scene obs_scene
---- @param param2 f_p_struct_obs_scene_p_struct_obs_scene_item_p_void__bool
---- @param param3 ref_void*
---- @return unknown
-function obslua.obs_scene_enum_items(scene, param2, param3) end
+--- @return sources_list
+function obslua.obs_scene_enum_items(scene) end
 
 --- :param id: The unique numeric identifier of the scene item
 --- :return:   The scene item if found, otherwise *NULL* if not found
@@ -10350,7 +10395,6 @@ function obslua.os_dlclose(module) end
 ---
 --- C definition: `void *os_dlopen(const char *path)`
 --- @param path string
---- @return void
 function obslua.os_dlopen(path) end
 
 --- Returns a symbol from a dynamic library.
@@ -10358,7 +10402,6 @@ function obslua.os_dlopen(path) end
 --- C definition: `void *os_dlsym(void *module, const char *func)`
 --- @param module ref_void*
 --- @param func string
---- @return void
 function obslua.os_dlsym(module, func) end
 
 --- Converts a double to a string.

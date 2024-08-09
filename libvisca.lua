@@ -297,6 +297,9 @@ function Visca.set_log_function(func)
 end
 
 --- @class PayloadCommand object
+--- @field category integer The Visca command category
+--- @field command integer The Visca command
+--- @field arguments table The command data bytes
 Visca.PayloadCommand = {}
 Visca.PayloadCommand.__index = Visca.PayloadCommand
 
@@ -366,6 +369,9 @@ function Visca.PayloadCommand:as_string()
 end
 
 --- @class PayloadReply object
+--- @field error_type integer The reply error type - if any
+--- @field arguments table The command reply data bytes
+--- @field argument_cnt integer The nummer of reply data bytes
 Visca.PayloadReply = {}
 Visca.PayloadReply.__index = Visca.PayloadReply
 
@@ -535,6 +541,10 @@ function Visca.PayloadReply:as_string()
 end
 
 --- @class Message Visca Message object
+--- @field payload_size number The lenght in bytes of the payload in the message
+--- @field seq_nr number Sequential incrementing number of the message
+--- @field payload table The raw data in the massage
+--- @field message table Structure containing the decoded response object, either a PayloadCommand or PayloadReply
 Visca.Message = {}
 Visca.Message.__index = Visca.Message
 
@@ -607,7 +617,7 @@ end
 
 --- Generate a data bytestring of this message
 ---
---- @param mode ViscaModes
+--- @param mode ViscaModes|integer
 --- @return string
 function Visca.Message:to_data(mode)
     mode = mode or Visca.modes.generic
@@ -641,7 +651,7 @@ end
 
 --- Generate a human readable representation in hex of this message
 ---
---- @param mode ViscaModes
+--- @param mode ViscaModes|integer
 function Visca.Message:as_string(mode)
     mode = mode or Visca.modes.generic
     local bin_str = self:to_data(mode)
@@ -716,8 +726,12 @@ Visca.ReplyServer = {
 
 function Visca.ReplyServer.add_listener_for(address, port)
     local cnt = (Visca.ReplyServer.clients[port] or 0)
+    --- @type string|table|nil
+    local err
+
     if cnt == 0 then
-        local sock_address, err, num = socket.find_first_address("*", port,
+        local sock_address, num
+        sock_address, err, num = socket.find_first_address("*", port,
             {family="inet", socket_type="dgram", protocol="udp"})
         if sock_address then
             local server
@@ -811,6 +825,8 @@ end
 
 --- @class Transmission The Transmission object tracks responses received on a send message.
 --- It stores the response by type (ack, error or completion) and tracks timeout.
+--- @field send Message The message send
+--- @field send_timestamp number|nil The timestamp in nanseconds at which the message was send, or nil
 Visca.Transmission = {}
 Visca.Transmission.__index = Visca.Transmission
 
@@ -874,13 +890,19 @@ function Visca.Transmission:inquiry_data()
 end
 
 --- @class Connection Connection to a Visca camera
+--- @field private sock_address unknown The socket address structure of the destination
+--- @field public sock_err string The last error obtained from the socket or address detection
+--- @field private address string The IP address or DNS of the camera
+--- @field private transmission_queue Transmission[] List of Transmission objects
+--- @field private callbacks table List of callbacks: [type][id] = function
+--- @field private compatibility table List of compatibility settings (key/value)
 Visca.Connection = {}
 Visca.Connection.__index = Visca.Connection
 
 --- Visca Connection constructor
 ---
 --- @param address string The IP address or DNS of the camera
---- @param port number    The Visca control port of the camera
+--- @param port integer|nil The Visca control port of the camera
 --- @return Connection
 function Visca.Connection.new(address, port)
     port = port or Visca.default_port
@@ -913,7 +935,7 @@ function Visca.Connection.new(address, port)
     return connection
 end
 
---- @param mode ViscaModes
+--- @param mode ViscaModes|integer
 function Visca.Connection:set_mode(mode)
     if Visca.modes:has_value(mode or Visca.modes.generic) then
         self.mode = mode
@@ -1036,16 +1058,17 @@ function Visca.Connection:__transmissions_process()
     local transmit_size = 0
     local transmit_data
 
+    local remove_transmission = false
     for i,t in pairs(self.transmission_queue) do
         if t:timed_out() then
             self:__exec_callback('timeout', t)
-            t = nil
+            remove_transmission = true
         elseif t.error or t.completion then
             -- Message transaction completed, remove from queue
-            t = nil
+            remove_transmission = true
         end
 
-        if not t then
+        if remove_transmission or not t then
             self.transmission_queue[i] = nil
         end
     end
@@ -1601,8 +1624,9 @@ end
 --- Connect to a Visca capable camera
 ---
 --- @param address string The IP address or DNS of the camera
---- @param port number    The Visca control port of the camera
+--- @param port integer|nil The Visca control port of the camera
 --- @return Connection
+--- @overload fun(addres: string, port: integer|nil): nil,string
 function Visca.connect(address, port)
     ---@type Connection
     local connection = Visca.Connection.new(address, port)

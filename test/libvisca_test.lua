@@ -41,16 +41,24 @@ end
 
 module("libvisca_test", lunit.testcase, package.seeall)
 
---- @type: Visca.Connection
+--- @type Connection
 local connection
 
 function setup()
+    --- @diagnostic disable-next-line: cast-local-type
     connection = Visca.connect('127.1.2.101')
-    lunit.assert_true(connection:set_mode(Visca.modes.generic))
+    lunit.assert_not_nil(connection)
+    if connection ~= nil then
+        lunit.assert_true(connection:set_mode(Visca.modes.generic))
+    end
 end
 
 function teardown()
     --connection:close()
+end
+
+function test_visca_mode()
+    lunit.assert_equal(0, Visca.modes.generic)
 end
 
 function test_set_preset_4()
@@ -130,7 +138,6 @@ function test_cam_reset_recall_8_ptzoptics()
 end
 
 function test_cam_reset_recall_6_jvc()
-    connection:set_compatibility(nil)
     local _, data = connection:Cam_Preset_Recall(6)
     local recv_msg = Visca.Message.new():from_data(data):dump("Cam_Preset_Recall 6 normal")
     lunit.assert_not_nil(recv_msg.message.command)
