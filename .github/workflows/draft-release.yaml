@@ -3,14 +3,15 @@ name: Draft release
 on:
   push:
     tags:
-      - '+([0-9])\.+([0-9])*(\.[0-9])'
+      - '([0-9])+\.([0-9])+(\.([0-9])+)?'
 
 jobs:
   release:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Check out the repo
+      uses: actions/checkout@v4
 
     - name: Create release archive
       run: zip ${{ github.event.repository.name }}-${{ github.ref }}.zip \

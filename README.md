@@ -2,7 +2,8 @@
 A plugin for [OBS](https://obsproject.com/) to control Visca-over-IP based cameras.
 
 [![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://opensource.org/licenses/)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/vwout/obs-visca-control?style=flat-square)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/vwout/obs-visca-control?style=flat-square)](https://github.com/vwout/obs-visca-control/releases)
+[![Linting and Tests](https://github.com/vwout/obs-visca-control/actions/workflows/test.yaml/badge.svg)](https://github.com/vwout/obs-visca-control/actions/workflows/test.yaml)
 
 This plugin adds a source to a scene in OBS. With this source, a camera can be controlled.
 Its main purpose is to automatically switch a camera to a certain preset when the scene is activated.

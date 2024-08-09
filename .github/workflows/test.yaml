@@ -1,4 +1,4 @@
-name: Run tests
+name: Linting and Tests
 
 on: [push, pull_request]
 
@@ -8,9 +8,11 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
     - name: Build the Docker image
       run: docker build .docker/alpine/ --tag vwout/obs-visca-control-test:lua-5.2
+
     - name: Run linter
       uses: addnab/docker-run-action@v3
       with:
@@ -23,6 +25,7 @@ jobs:
               obs-visca-control.lua
             echo "Linting libvisca.lua, obs-visca-control.lua"
             lualint -s libvisca.lua -s obs-visca-control.lua
+
     - name: Bytecode verification
       uses: addnab/docker-run-action@v3
       with:
@@ -37,6 +40,7 @@ jobs:
           luac -p libvisca.lua
           echo "Checking bytecode for obs-visca-control.lua"
           luac -p obs-visca-control.lua
+
     - name: Run unit tests
       uses: addnab/docker-run-action@v3
       with:
