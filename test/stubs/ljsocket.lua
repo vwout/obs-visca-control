@@ -12,6 +12,10 @@ function stub_socket.bind(_address, _port)
     return true
 end
 
+function stub_socket.receive_from(_address, _length)
+    return nil
+end
+
 local M = {}
 
 function M.connect()

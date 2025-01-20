@@ -1058,8 +1058,8 @@ function Visca.Connection:__transmissions_process()
     local transmit_size = 0
     local transmit_data
 
-    local remove_transmission = false
     for i,t in pairs(self.transmission_queue) do
+        local remove_transmission = false
         if t:timed_out() then
             self:__exec_callback('timeout', t)
             remove_transmission = true

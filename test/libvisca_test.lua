@@ -410,4 +410,46 @@ function test_send_raw_command()
     lunit.assert_table_equal({0x81, 0x01, 0x7E, 0x01, 0x0A, 0x00, 0x02, 0xFF}, msg_tally.payload)
 end
 
+function test_transaction_processing()
+    -- Adding first item should yield immediate send, thus send bytes > 0
+    local size, message_data = connection:Cam_Pantilt_Position_Inquiry()
+    lunit.assert_equal(13, size)
+    local msg = Visca.Message.new():from_data(message_data):dump("Cam_Pantilt_Position_Inquiry")
+    lunit.assert_equal(0, msg.seq_nr)
+
+    -- Queue should contain 1 item
+    lunit.assert_equal(1, #connection.transmission_queue)
+    -- Reprocessing should not yield any effect
+    lunit.assert_equal(0, connection:__transmissions_process())
+    -- Adding second item should not cause sending of data, since reply to first command is not received
+    lunit.assert_equal(0, connection:Cam_Zoom_Position_Inquiry())
+    -- Queue should contain 2 items
+    lunit.assert_equal(2, #connection.transmission_queue)
+    -- Polling receive yields no effect
+    lunit.assert_nil(connection:receive())
+    lunit.assert_equal(2, #connection.transmission_queue)
+
+    lunit.assert_not_nil(connection.transmission_queue[1].send_timestamp)
+    lunit.assert_nil(connection.transmission_queue[2].send_timestamp)
+
+    local is_completed_calls = 0
+    connection:register_on_completion_callback(0, function(t) is_completed_calls = is_completed_calls + 1 end)
+
+    -- Inject a reply in the ReplyServer queue
+    table.insert(Visca.ReplyServer.replies, {'127.1.2.101', "\x90\x50\x00\x00\x0E\x00\x0F\x0E\x09\x0C\xFF" })
+
+    msg, err, _ = connection:receive()
+    lunit.assert_not_nil(msg)
+    lunit.assert_not_nil(msg.message.reply)
+    lunit.assert_true(msg.message.reply:is_completion())
+    lunit.assert_nil(err)
+
+    lunit.assert_equal(1, is_completed_calls)
+
+    -- first message should be processed (and nil), second should be send
+    lunit.assert_equal(2, #connection.transmission_queue)
+    lunit.assert_nil(connection.transmission_queue[1])
+    lunit.assert_not_nil(connection.transmission_queue[2].send_timestamp)
+end
+
 lunit.main(...)
