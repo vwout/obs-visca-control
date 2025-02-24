@@ -4,7 +4,7 @@ local Visca = require("libvisca")
 
 local plugin_info = {
     name = "Visca Camera Control",
-    version = "2.6",
+    version = "2.7",
     url = "https://github.com/vwout/obs-visca-control",
     description = "Camera control via Visca over IP",
     author = "vwout"
