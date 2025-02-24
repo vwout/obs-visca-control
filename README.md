@@ -124,6 +124,9 @@ To delay the action execution, for example to synchronize after completion of a 
 This delay can also be used to run multiple actions in sequence
 
 Camera actions configured for a scene are executed as configured when the scene is activated or deactivated on preview or on program.
+It is possible to add as many actions to a scene as needed.
+The order is evaluated from bottom to top, like the layer order: the background (bottom item) is rendered before the foreground (topmost item).
+Nevertheless, to guarantee an ordering between multiple actions in a scene, configure a delay for each action.
 
 **Tip**: To temporarily suppress execution of scene actions, configure the hotkey <a name="suppress_actions_on_scenes">`Suppress actions on scenes`</a>.
 As long as the hotkey is pressed, actions are not executed.
