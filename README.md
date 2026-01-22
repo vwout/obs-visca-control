@@ -1,15 +1,16 @@
-# obs-visca-control
-A plugin for [OBS](https://obsproject.com/) to control Visca-over-IP based cameras.
+# Visca-over-IP Camera Control plugin
+A Lua script plugin for [OBS](https://obsproject.com/) to control Visca-over-IP based cameras.
 
 [![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://opensource.org/licenses/)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/vwout/obs-visca-control?style=flat-square)](https://github.com/vwout/obs-visca-control/releases)
 [![Linting and Tests](https://github.com/vwout/obs-visca-control/actions/workflows/test.yaml/badge.svg)](https://github.com/vwout/obs-visca-control/actions/workflows/test.yaml)
 
+Control VISCA-over-IP PTZ cameras from OBS Studio with automatic preset switching and full PTZ/Focus/Zoom controls.
 This plugin adds a source to a scene in OBS. With this source, a camera can be controlled.
-Its main purpose is to automatically switch a camera to a certain preset when the scene is activated.
-This activation can be as soon as the scene is active in preview, in program, or both.
+Its main purpose is to automatically switch a camera to a certain preset, or perform another action on the camera when the scene is activated.
+Activation means: as soon as the scene is active in preview, in program, or both.
 
-Besides recalling a pre-made preset, this plugin supports a few more control operations:
+While the initial and main reason for creating this plugin was to be able to recall a pre-made preset configured in a camera, this plugin supports a few more control operations:
 - Switch camera On
 - Switch camera Off
 - Preset Recall
@@ -19,12 +20,12 @@ Besides recalling a pre-made preset, this plugin supports a few more control ope
 - Focus (Manual mode, Automatic mode, Trigger refocus, To infinity, Near, Far)
 - Change the camera image settings (Color gain / Saturation, Brightness)
 
-This plugin requires the camera to support Visca over IP via UDP.
+This plugin requires a camera that supports Visca over IP via UDP.
 It follows the specification as designed by Sony and also supports the PTZOptics variant of Visca.
 This plugin is confirmed to work with at Avonic, Canon, BZB Gear, Everet, GlowStream, JVC, PTZOptics and Zowietek cameras.
 Others may work as well.
 
-Also visit https://obsproject.com/forum/resources/control-visca-over-ip-based-cameras.1173/ for more information. 
+Visit https://obsproject.com/forum/resources/control-visca-over-ip-based-cameras.1173/ for more information. 
 
 ## Installation
 The plugin is a script plugin and utilizes the Lua scripting capabilities of OBS.
