@@ -530,17 +530,17 @@ local function open_visca_connection(camera_id)
                         local ptz_vals = {}
 
                         if reply_data.pan then
-                            table.insert(ptz_vals, string.format("Pan %d (%04X)", reply_data.pan, reply_data.pan))
+                            table.insert(ptz_vals, string.format("Pan %d (%04X)", Visca.signed16(reply_data.pan), reply_data.pan))
                         else
                             table.insert(ptz_vals, "Pan: n/a (-)")
                         end
                         if reply_data.tilt then
-                            table.insert(ptz_vals, string.format("Tilt: %d (%04X)", reply_data.tilt, reply_data.tilt))
+                            table.insert(ptz_vals, string.format("Tilt: %d (%04X)", Visca.signed16(reply_data.tilt), reply_data.tilt))
                         else
                             table.insert(ptz_vals, "Tilt: n/a (-)")
                         end
                         if reply_data.zoom then
-                            table.insert(ptz_vals, string.format("Zoom: %d (%04X)", reply_data.zoom, reply_data.zoom))
+                            table.insert(ptz_vals, string.format("Zoom: %d (%04X)", Visca.signed16(reply_data.zoom), reply_data.zoom))
                         else
                             table.insert(ptz_vals, "Zoom: n/a (-)")
                         end

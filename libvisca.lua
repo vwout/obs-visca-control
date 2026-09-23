@@ -296,6 +296,18 @@ function Visca.set_log_function(func)
     Visca.debug = true
 end
 
+--- Utility function to convert a 16-bit unsigned 2's complement conversion value to signed
+---
+--- @param v number Unsigned value (2's complement notation)
+--- @return number Signed value
+function Visca.signed16(v)
+    v = v or -32768
+    if v >= 0x8000 then
+        v = v - 0x10000
+    end
+    return v
+end
+
 --- @class PayloadCommand object
 --- @field category integer The Visca command category
 --- @field command integer The Visca command
