@@ -10,8 +10,9 @@ local plugin_info = {
     author = "vwout"
 }
 
-local plugin_def = {
+local plugin_visca_control = {
     id = "Visca_Control",
+    version = tonumber(plugin_info.version:match("^%d+")),
     type = obs.OBS_SOURCE_TYPE_INPUT,
     output_flags = bit.bor(obs.OBS_SOURCE_CUSTOM_DRAW),
 }
@@ -413,7 +414,7 @@ local function get_plugin_settings_from_scene(scene_type, camera_id)
             for _, scene_item in pairs(scene_items) do
                 local scene_item_source = obs.obs_sceneitem_get_source(scene_item)
                 local scene_item_source_id = obs.obs_source_get_unversioned_id(scene_item_source)
-                if scene_item_source_id == plugin_def.id then
+                if scene_item_source_id == plugin_visca_control.id then
                     local source_name = obs.obs_source_get_name(scene_item_source)
                     local source_settings = obs.obs_source_get_settings(scene_item_source)
                     local source_is_visible = obs.obs_source_showing(scene_item_source)
@@ -894,6 +895,7 @@ function script_load(settings)
     plugin_settings = settings
 
     print(string.format("%s version %s", plugin_info.name, plugin_info.version))
+    obs.obs_register_source(plugin_visca_control)
 
     if obs.obs_data_get_int(plugin_settings, "debug_logging") >= logging_levels.Debug then
         Visca.set_log_function(log_libvisca)
@@ -1434,11 +1436,15 @@ local function cb_scene_get_ptz_position(scene_props, btn_prop)
     return true
 end
 
-plugin_def.get_name = function()
+----------------------------------
+-- Visca Control Source definition
+----------------------------------
+
+plugin_visca_control.get_name = function()
     return plugin_info.name
 end
 
-plugin_def.create = function(_settings, source)
+plugin_visca_control.create = function(_settings, source)
     local data = {}
     local source_sh = obs.obs_source_get_signal_handler(source)
     obs.signal_handler_connect(source_sh, "show",
@@ -1458,7 +1464,7 @@ plugin_def.create = function(_settings, source)
     return data
 end
 
-plugin_def.destroy = function(_data)
+plugin_visca_control.destroy = function(_data)
     for camera_id, connection in pairs(plugin_data.connections) do
         if connection ~= nil then
             connection:close()
@@ -1469,7 +1475,7 @@ plugin_def.destroy = function(_data)
     Visca.ReplyServer.shutdown()
 end
 
-plugin_def.get_properties = function(data)
+plugin_visca_control.get_properties = function(data)
     local props = obs.obs_properties_create()
 
     local action_props = obs.obs_properties_create()
@@ -1606,11 +1612,10 @@ plugin_def.get_properties = function(data)
     return props
 end
 
-obs.obs_register_source(plugin_def)
-
 if _G._UNITTEST then
     _T = {}
-    _T.plugin_def = plugin_def
+    _T.plugin_def = plugin_visca_control
+    _T.plugin_visca_control = plugin_visca_control
 
     -- Internal locals
     _T._plugin_settings = plugin_settings
