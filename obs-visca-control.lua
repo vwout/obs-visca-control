@@ -17,7 +17,7 @@ local plugin_visca_control = {
     output_flags = bit.bor(obs.OBS_SOURCE_CUSTOM_DRAW),
 }
 
-local plugin_settings = {}
+local plugin_settings
 local plugin_data = {
     debug = false,
     active_scene = nil,
@@ -187,7 +187,7 @@ local function parse_preset_value(preset_value)
 end
 
 local function parse_custom_action(action)
-    local action_cmd = nil
+    local action_cmd
     local regex_pattern = "([0-9A-F][0-9A-F])"
 
     if action and #action > 0 then
@@ -389,7 +389,7 @@ local function get_plugin_settings_from_scene(scene_type, camera_id)
     scene_type = scene_type or plugin_scene_type.Preview
     local p_settings = {}
 
-    local scene_source = nil
+    local scene_source
     if type(scene_type) == "number" then
         scene_source = (scene_type == plugin_scene_type.Program) and obs.obs_frontend_get_current_scene() or
             obs.obs_frontend_get_current_preview_scene()
@@ -531,17 +531,20 @@ local function open_visca_connection(camera_id)
                         local ptz_vals = {}
 
                         if reply_data.pan then
-                            table.insert(ptz_vals, string.format("Pan %d (%04X)", Visca.signed16(reply_data.pan), reply_data.pan))
+                            table.insert(ptz_vals,
+                                string.format("Pan %d (%04X)", Visca.signed16(reply_data.pan), reply_data.pan))
                         else
                             table.insert(ptz_vals, "Pan: n/a (-)")
                         end
                         if reply_data.tilt then
-                            table.insert(ptz_vals, string.format("Tilt: %d (%04X)", Visca.signed16(reply_data.tilt), reply_data.tilt))
+                            table.insert(ptz_vals,
+                                string.format("Tilt: %d (%04X)", Visca.signed16(reply_data.tilt), reply_data.tilt))
                         else
                             table.insert(ptz_vals, "Tilt: n/a (-)")
                         end
                         if reply_data.zoom then
-                            table.insert(ptz_vals, string.format("Zoom: %d (%04X)", Visca.signed16(reply_data.zoom), reply_data.zoom))
+                            table.insert(ptz_vals,
+                                string.format("Zoom: %d (%04X)", Visca.signed16(reply_data.zoom), reply_data.zoom))
                         else
                             table.insert(ptz_vals, "Zoom: n/a (-)")
                         end
