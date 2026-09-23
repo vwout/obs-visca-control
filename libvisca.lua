@@ -309,8 +309,8 @@ function Visca.signed16(v)
 end
 
 --- @class PayloadCommand object
---- @field category integer The Visca command category
---- @field command integer The Visca command
+--- @field category number The Visca command category
+--- @field command number The Visca command
 --- @field arguments table The command data bytes
 Visca.PayloadCommand = {}
 Visca.PayloadCommand.__index = Visca.PayloadCommand
@@ -381,9 +381,9 @@ function Visca.PayloadCommand:as_string()
 end
 
 --- @class PayloadReply object
---- @field error_type integer The reply error type - if any
+--- @field error_type number The reply error type - if any
 --- @field arguments table The command reply data bytes
---- @field argument_cnt integer The nummer of reply data bytes
+--- @field argument_cnt number The nummer of reply data bytes
 Visca.PayloadReply = {}
 Visca.PayloadReply.__index = Visca.PayloadReply
 
@@ -629,7 +629,7 @@ end
 
 --- Generate a data bytestring of this message
 ---
---- @param mode ViscaModes|integer
+--- @param mode ViscaModes|number
 --- @return string
 function Visca.Message:to_data(mode)
     mode = mode or Visca.modes.generic
@@ -663,7 +663,7 @@ end
 
 --- Generate a human readable representation in hex of this message
 ---
---- @param mode ViscaModes|integer
+--- @param mode ViscaModes|number
 function Visca.Message:as_string(mode)
     mode = mode or Visca.modes.generic
     local bin_str = self:to_data(mode)
@@ -902,7 +902,7 @@ function Visca.Transmission:inquiry_data()
 end
 
 --- @class Connection Connection to a Visca camera
---- @field private sock_address unknown The socket address structure of the destination
+--- @field private sock_address any The socket address structure of the destination
 --- @field public sock_err string The last error obtained from the socket or address detection
 --- @field private address string The IP address or DNS of the camera
 --- @field private transmission_queue Transmission[] List of Transmission objects
@@ -914,7 +914,7 @@ Visca.Connection.__index = Visca.Connection
 --- Visca Connection constructor
 ---
 --- @param address string The IP address or DNS of the camera
---- @param port integer|nil The Visca control port of the camera
+--- @param port number|nil The Visca control port of the camera
 --- @return Connection
 function Visca.Connection.new(address, port)
     port = port or Visca.default_port
@@ -947,7 +947,7 @@ function Visca.Connection.new(address, port)
     return connection
 end
 
---- @param mode ViscaModes|integer
+--- @param mode ViscaModes|number
 function Visca.Connection:set_mode(mode)
     if Visca.modes:has_value(mode or Visca.modes.generic) then
         self.mode = mode
@@ -1636,9 +1636,9 @@ end
 --- Connect to a Visca capable camera
 ---
 --- @param address string The IP address or DNS of the camera
---- @param port integer|nil The Visca control port of the camera
+--- @param port number|nil The Visca control port of the camera
 --- @return Connection
---- @overload fun(addres: string, port: integer|nil): nil,string
+--- @overload fun(addres: string, port: number|nil): nil,string
 function Visca.connect(address, port)
     ---@type Connection
     local connection = Visca.Connection.new(address, port)
