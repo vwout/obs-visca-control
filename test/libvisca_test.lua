@@ -122,12 +122,29 @@ function test_cam_power_off()
     lunit.assert_table_equal({0x81, 0x01, 0x04, 0x00, 0x03, 0xFF}, recv_msg.payload)
 end
 
-function test_cam_reset_recall_2_generic()
+function test_cam_preset_set_15_generic()
+    lunit.assert_true(connection:set_mode(Visca.modes.generic))
+    local _, data = connection:Cam_Preset_Set(15)
+    local recv_msg = Visca.Message.new():from_data(data):dump("Cam_Preset_Set 15 generic")
+    lunit.assert_not_nil(recv_msg.message.command)
+    lunit.assert_equal(15, recv_msg.message.command.arguments[2])
+end
+
+function test_cam_preset_set_12_preset_nr_offset_compatibility()
+    lunit.assert_true(connection:set_mode(Visca.modes.generic))
+    connection:set_compatibility({ preset_nr_offset = 1 })
+    local _, data = connection:Cam_Preset_Set(12)
+    local recv_msg = Visca.Message.new():from_data(data):dump("Cam_Preset_Set 12 with preset_nr_offset compatibility")
+    lunit.assert_not_nil(recv_msg.message.command)
+    lunit.assert_equal(11, recv_msg.message.command.arguments[2])
+end
+
+function test_cam_preset_recall_2_generic()
     lunit.assert_true(connection:set_mode(Visca.modes.generic))
     connection:Cam_Preset_Recall(2)
 end
 
-function test_cam_reset_recall_8_ptzoptics()
+function test_cam_preset_recall_8_ptzoptics()
     lunit.assert_true(connection:set_mode(Visca.modes.ptzoptics))
     local len_err_num, data = connection:Cam_Preset_Recall(8)
     lunit.assert_equal(7, len_err_num, "invalid length") -- Only data, no header
@@ -137,7 +154,7 @@ function test_cam_reset_recall_8_ptzoptics()
     lunit.assert_equal(7, recv_msg.payload_size, "invalid payload length")
 end
 
-function test_cam_reset_recall_6_jvc()
+function test_cam_preset_recall_6_jvc()
     local _, data = connection:Cam_Preset_Recall(6)
     local recv_msg = Visca.Message.new():from_data(data):dump("Cam_Preset_Recall 6 normal")
     lunit.assert_not_nil(recv_msg.message.command)
