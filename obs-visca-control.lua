@@ -167,11 +167,11 @@ local function parse_preset_value(preset_value)
         local v1, v2 = string.match(preset_value, pattern)
         if (v1 ~= nil) and (v2 ~= nil) then
             if (tonumber(v1) == nil) and (tonumber(v2) ~= nil) then
-                preset_name = v1
+                preset_name = v1:gsub("^%s*(.-)%s*$", "%1")  -- trim value
                 preset_id = tonumber(v2)
                 break
             elseif (tonumber(v2) == nil) and (tonumber(v1) ~= nil) then
-                preset_name = v2
+                preset_name = v2:gsub("^%s*(.-)%s*$", "%1")  -- trim value
                 preset_id = tonumber(v1)
                 break
             end
