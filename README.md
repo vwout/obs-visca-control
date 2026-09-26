@@ -62,6 +62,7 @@ Also check the _Mode_.
 - _Hotkey Zoom/Focus speed_: The speed that is used for zoom and focus operations triggered by a hotkey. This speed can be manipulated by user-assignable hotkeys.
 - _Presets_: The list of presets that you want to configure for the camera - these need to match the presets that are configured in the camera itself.
 - _Readonly preset_: Prevent modification of presets stored in the camera from the [scene](#in-a-scene) configuration dialog. 
+
 **Important: Reload the script after changing the address, port of mode configuration!**
 
 Switch between cameras using the drop-down.
