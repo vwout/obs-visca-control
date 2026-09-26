@@ -559,15 +559,18 @@ local function open_visca_connection(camera_id)
                         for scene_name, source_name, source_settings, _ in
                             get_plugin_settings_from_scene(plugin_scene_type.Preview, camera_id) do
                             if source_settings then
-                                local scene_camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
-                                if scene_camera_id == camera_id then
-                                    local ptz_str = table.concat(ptz_vals, ", ")
-                                    obs.obs_data_set_string(source_settings, "scene_ptz_position", ptz_str)
-                                    log("PTZ values set for camera %d: %s", camera_id, ptz_str)
-                                else
-                                    print(string.format("Error setting PTZ values: callback camera %d does not match" ..
-                                        " source '%s' camera %d in scene %s",
-                                        camera_id, source_name, scene_camera_id, scene_name))
+                                local scene_action = obs.obs_data_get_int(source_settings, "scene_action")
+                                if scene_action == camera_actions.PanTiltZoom_Position then
+                                    local scene_camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
+                                    if scene_camera_id == camera_id then
+                                        local ptz_str = table.concat(ptz_vals, ", ")
+                                        obs.obs_data_set_string(source_settings, "scene_ptz_position", ptz_str)
+                                        log("PTZ values set for camera %d: %s", camera_id, ptz_str)
+                                    else
+                                        print(string.format("Error setting PTZ values: callback camera %d does not match" ..
+                                            " source '%s' camera %d in scene %s",
+                                            camera_id, source_name, scene_camera_id, scene_name))
+                                    end
                                 end
 
                                 obs.obs_data_release(source_settings)
@@ -1432,15 +1435,24 @@ local function source_signal_handler(calldata, signal)
     end
 end
 
-local function cb_scene_get_ptz_position(scene_props, btn_prop)
-    for _, _, source_settings, _ in get_plugin_settings_from_scene(plugin_scene_type.Preview) do
-        if source_settings then
-            local camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
-            local connection = open_visca_connection(camera_id)
-            if connection then
-                connection:Cam_Pantilt_Position_Inquiry()
-                connection:Cam_Zoom_Position_Inquiry()
+local function cb_scene_get_ptz_position(scene_props, btn_prop, _data)
+    for _, _, source_settings, source_is_visible in get_plugin_settings_from_scene(plugin_scene_type.Preview) do
+        if source_settings and source_is_visible then
+            local scene_action = obs.obs_data_get_int(source_settings, "scene_action")
+            if scene_action == camera_actions.PanTiltZoom_Position then
+                local camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
+                local connection = open_visca_connection(camera_id)
+                if connection then
+                    connection:Cam_Pantilt_Position_Inquiry()
+                    connection:Cam_Zoom_Position_Inquiry()
+                end
             end
+        end
+        obs.obs_data_release(source_settings)
+    end
+
+    return true
+end
 
 local function cb_scene_set_preset(scene_props, btn_prop, _data)
     for _, _, source_settings, source_is_visible in get_plugin_settings_from_scene(plugin_scene_type.Preview) do
