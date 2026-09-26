@@ -17,7 +17,10 @@ local plugin_visca_control = {
     output_flags = bit.bor(obs.OBS_SOURCE_CUSTOM_DRAW),
 }
 
-local plugin_settings
+local plugin_settings = {
+    debug_logging = 0
+}
+
 local plugin_data = {
     debug = false,
     active_scene = nil,
@@ -567,8 +570,8 @@ local function open_visca_connection(camera_id)
                                         obs.obs_data_set_string(source_settings, "scene_ptz_position", ptz_str)
                                         log("PTZ values set for camera %d: %s", camera_id, ptz_str)
                                     else
-                                        print(string.format("Error setting PTZ values: callback camera %d does not match" ..
-                                            " source '%s' camera %d in scene %s",
+                                        print(string.format("Error setting PTZ values: callback camera %d " ..
+                                            "does not match source '%s' camera %d in scene %s",
                                             camera_id, source_name, scene_camera_id, scene_name))
                                     end
                                 end

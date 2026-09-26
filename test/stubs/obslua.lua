@@ -74,7 +74,7 @@ local obs_frontend_source = {}
 local obs_frontend_source_list = {}
 
 --- @class obs_hotkey data structure
---- @field id integer Internal hotkey identifier
+--- @field id number Internal hotkey identifier
 --- @field name string The shortname
 --- @field description string Descriptive name of the shorcut show in the UI
 local obs_hotkey = {}
@@ -5758,8 +5758,8 @@ function obslua.obs_hotkey_pair_unregister(param1) end
 --- C definition: Not available
 --- @param name string
 --- @param description string
---- @param callback unknown
---- @return integer
+--- @param callback any
+--- @return number
 function obslua.obs_hotkey_register_frontend(name, description, callback) end
 
 --- Not mentioned in OBS documentation
@@ -5802,9 +5802,8 @@ function obslua.obs_hotkey_trigger_routed_callback(param1, param2) end
 --- :param callback: Callback of the hotkey to unregister.
 ---
 --- C definition: Not available
---- @param callback number
---- @return unknown
-function obslua.obs_hotkey_unregister(callback) end
+--- @param obs_hotkey_id number
+function obslua.obs_hotkey_unregister(obs_hotkey_id) end
 
 --- Not mentioned in OBS documentation
 ---
