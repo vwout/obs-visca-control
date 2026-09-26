@@ -331,6 +331,9 @@ local function create_camera_controls(cam_props, camera_id, settings)
             end
             obs.obs_property_set_modified_callback(prop_presets, prop_presets_validate)
 
+            obs.obs_properties_add_bool(props, cam_prop_prefix .. "readonly_preset",
+                "Use presets readonly")
+
             obs.obs_properties_add_group(cam_props, cam_prop_prefix .. "grp", "Camera configuration" .. cam_name_suffix,
                 obs.OBS_GROUP_NORMAL, props)
         end
@@ -1097,6 +1100,13 @@ local function cb_camera_action_changed(props, property, data)
         end
 
         changed = set_property_visibility(props, string.format("scene_cam_%d_preset", camera_id), visible) or changed
+
+        if scene_camera == camera_id then
+            changed = set_property_visibility(props, "scene_set_preset",
+                visible and
+                    not obs.obs_data_get_bool(plugin_settings, string.format("cam_%d_readonly_preset", camera_id)))
+                or changed
+        end
     end
 
     changed = set_property_visibility(props, "scene_config_grp", not ((scene_action == camera_actions.Camera_On) or
@@ -1432,6 +1442,20 @@ local function cb_scene_get_ptz_position(scene_props, btn_prop)
                 connection:Cam_Zoom_Position_Inquiry()
             end
 
+local function cb_scene_set_preset(scene_props, btn_prop, _data)
+    for _, _, source_settings, source_is_visible in get_plugin_settings_from_scene(plugin_scene_type.Preview) do
+        if source_settings and source_is_visible then
+            local scene_action = obs.obs_data_get_int(source_settings, "scene_action")
+            if scene_action == camera_actions.Preset_Recall then
+                local camera_id = obs.obs_data_get_int(source_settings, "scene_camera")
+                local cam_prop_prefix = string.format("cam_%d_", camera_id)
+
+                local preset = obs.obs_data_get_int(source_settings, "scene_" .. cam_prop_prefix .. "preset")
+                local connection = open_visca_connection(camera_id)
+                if connection then
+                    connection:Cam_Preset_Set(preset)
+                end
+            end
             obs.obs_data_release(source_settings)
         end
     end
@@ -1563,6 +1587,9 @@ plugin_visca_control.get_properties = function(data)
 
         obs.obs_data_array_release(presets)
     end
+
+    obs.obs_properties_add_button(config_props, "scene_set_preset",
+        "Store current camera position and settings as the preset", cb_scene_set_preset)
 
     local prop_image_color_level =
         obs.obs_properties_add_bool(config_props, "scene_image_color_level", "Set Color Gain (Saturation)")

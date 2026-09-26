@@ -61,7 +61,7 @@ Also check the _Mode_.
 - _Hotkey Pan/Tilt speed_: The speed that is used for pan and tilt operations triggered by a hotkey. This speed can be manipulated by user-assignable hotkeys.
 - _Hotkey Zoom/Focus speed_: The speed that is used for zoom and focus operations triggered by a hotkey. This speed can be manipulated by user-assignable hotkeys.
 - _Presets_: The list of presets that you want to configure for the camera - these need to match the presets that are configured in the camera itself.
-
+- _Readonly preset_: Prevent modification of presets stored in the camera from the [scene](#in-a-scene) configuration dialog. 
 **Important: Reload the script after changing the address, port of mode configuration!**
 
 Switch between cameras using the drop-down.
@@ -108,6 +108,9 @@ In the source settings, select the camera and the action that should be executed
   Note: Your camera may not support all values that can be configured by the sliders.
   - When the action `Preset Recall` is chosen, the preset also needs to be chosen.
   These presets need to be configured per camera in the script settings, see [configuration](#configuration).
+  The behavior of recalling a preset is camera dependent.
+  When presets are not readonly (under [configuration](#configuration)), the current camera position and settings are stored under the preset when clicking the store button.
+  Typically, pan, tilt, zoom focus and white balance settings are associated with a preset, but this may vary per camera model.
   - To not recall a predefined preset, but set the camera to an absolute position, choose `Pan/Tilt/Zoom Absolute position` and retrieve the current position of the camera to be recalled later by pressing the button.
   - For the action `Pan/Tilt Direction`, the camera will move in the configured direction. The direction and speed also needs to be selected. 
   Note that this action does not use a specific starting position, the pan action starts from the camera position that is actual when the scene becomes active.

@@ -136,6 +136,7 @@ Visca.command_arguments = setmetatable({
     color_gain_reset = 0x00,
     color_gain_up    = 0x02,
     color_gain_down  = 0x03,
+    preset_set       = 0x01,
     preset_recall    = 0x02,
     power_on         = 0x02,
     power_standby    = 0x03,
@@ -1380,6 +1381,31 @@ function Visca.Connection:Cam_Power(on)
         Visca.categories.camera,
         Visca.commands.power,
         on and Visca.command_arguments.power_on or Visca.command_arguments.power_standby,
+        Visca.packet_consts.terminator
+    }
+
+    return self:send(msg)
+end
+
+--- Store a preset in the camera based on the current camera position and settings
+---
+--- @param preset number The preset number (typically starting with the first preset at 1)
+--- @return number, string
+function Visca.Connection:Cam_Preset_Set(preset)
+    if self.compatibility.preset_nr_offset ~= nil then
+        preset = preset - self.compatibility.preset_nr_offset
+    end
+    preset = math.max(math.min(preset or 0, 254), 0)
+
+    local msg = Visca.Message.new()
+    msg.payload_type = Visca.payload_types.visca_command
+    msg.payload = {
+        Visca.packet_consts.req_addr_base + bit.band(Visca.default_camera_nr or 1, 0x0F),
+        Visca.packet_consts.command,
+        Visca.categories.camera,
+        Visca.commands.preset,
+        Visca.command_arguments.preset_set,
+        bit.band(preset, 0xFF),  -- Preset Number(=0 to 254)
         Visca.packet_consts.terminator
     }
 
