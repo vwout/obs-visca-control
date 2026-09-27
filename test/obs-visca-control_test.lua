@@ -40,6 +40,11 @@ function test_parse_preset_value()
     preset_name, preset_id = _T._parse_preset_value("PresetNrTooHigh: 256")
     lunit.assert_nil(preset_name)
     lunit.assert_nil(preset_id)
+    preset_name, preset_id = _T._parse_preset_value("99: Preset (new)")
+    lunit.assert_equal("Preset (new)", preset_name)
+    lunit.assert_equal(99, preset_id)
+    preset_name, preset_id = _T._parse_preset_value("99: {}[];:}<>,.?/\\`'~!@#$%^&")
+    lunit.assert_equal("{}[];:}<>,.?/\\`'~!@#$%^&", preset_name)
 end
 
 function test_parse_custom_action_red_tuning()
