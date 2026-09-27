@@ -1679,6 +1679,7 @@ plugin_visca_control.get_properties = function(data)
     obs.obs_property_set_modified_callback(prop_image_color_level, cb_camera_action_changed)
     obs.obs_property_set_modified_callback(prop_image_brightness, cb_camera_action_changed)
     obs.obs_property_set_modified_callback(prop_camera, cb_camera_action_changed)
+    obs.obs_property_set_modified_callback(prop_action, cb_camera_action_changed)
     for camera_id = 1, num_cameras do
         obs.obs_property_set_modified_callback(prop_presets[camera_id], cb_camera_preset_changed)
     end
